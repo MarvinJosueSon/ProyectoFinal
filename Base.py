@@ -1,78 +1,78 @@
+# Base.py
 import tkinter as tk
 import ttkbootstrap as tb
 from ttkbootstrap import ttk
 from ttkbootstrap.constants import *
 from tkinter import messagebox
+from CargarGuardar import guardar_cursos, cargar_cursos
+from Admin_UI import VentanaAdministrador
+from Docente_UI import VentanaDocente
 
 class TarjetaLogin(ttk.Frame):
     def __init__(self, master):
         super().__init__(master, padding=24, style="card")
-        self._construir()
+        self.ventana_administrador = None
+        self.ventana_docente = None
+        self.cursos = cargar_cursos()
+        self.construir()
 
-    def _construir(self):
+    def construir(self):
         ttk.Label(self, text="Ingreso al sistema", font=("Segoe UI", 16, "bold")).grid(row=0, column=0, columnspan=3, pady=(0,12))
         ttk.Label(self, text="Usuario").grid(row=1, column=0, sticky="e", padx=6, pady=6)
         ttk.Label(self, text="Contraseña").grid(row=2, column=0, sticky="e", padx=6, pady=6)
-
         self.entrada_usuario = ttk.Entry(self, width=28)
         self.entrada_contrasena = ttk.Entry(self, show="*", width=28)
         self.entrada_usuario.grid(row=1, column=1, padx=6, pady=6)
         self.entrada_contrasena.grid(row=2, column=1, padx=6, pady=6)
-
         self.ver_contrasena = tk.BooleanVar(value=False)
-        boton_ver = ttk.Checkbutton(self, text="Mostrar", variable=self.ver_contrasena, command=self._alternar_contrasena, bootstyle=SECONDARY)
-        boton_ver.grid(row=2, column=2, sticky="w", padx=(0,6))
+        ttk.Checkbutton(self, text="Mostrar", variable=self.ver_contrasena, command=self.alternar_contrasena, bootstyle=SECONDARY).grid(row=2, column=2, sticky="w", padx=(0,6))
+        marco_botones = ttk.Frame(self)
+        marco_botones.grid(row=3, column=0, columnspan=3, pady=(12,0))
+        ttk.Button(marco_botones, text="Entrar", bootstyle=PRIMARY, command=self.entrar).pack(side="left", padx=4)
+        ttk.Button(marco_botones, text="Limpiar", bootstyle=INFO, command=self.limpiar).pack(side="left", padx=4)
+        ttk.Button(marco_botones, text="Salir", bootstyle=DANGER, command=self.salir).pack(side="left", padx=4)
+        self.entrada_contrasena.bind("<Return>", lambda e: self.entrar())
 
-        panel_botones = ttk.Frame(self)
-        panel_botones.grid(row=3, column=0, columnspan=3, pady=(12,0))
-        ttk.Button(panel_botones, text="Entrar", bootstyle=PRIMARY, command=self._entrar).pack(side="left", padx=4)
-        ttk.Button(panel_botones, text="Limpiar", bootstyle=INFO, command=self._limpiar).pack(side="left", padx=4)
-        ttk.Button(panel_botones, text="Salir", bootstyle=DANGER, command=self._salir).pack(side="left", padx=4)
-
-        self.entrada_contrasena.bind("<Return>", lambda e: self._entrar())
-
-    def _alternar_contrasena(self):
+    def alternar_contrasena(self):
         self.entrada_contrasena.configure(show="" if self.ver_contrasena.get() else "*")
 
-    def _entrar(self):
+    def entrar(self):
         usuario = self.entrada_usuario.get().strip()
         contrasena = self.entrada_contrasena.get().strip()
         if not usuario or not contrasena:
             messagebox.showwarning("Atención", "Ingresa el usuario y la contraseña.")
             return
         if usuario == "admin" and contrasena == "123":
-            self._abrir_admin()
+            self.abrir_administrador()
             return
         if usuario == "docente" and contrasena == "123":
-            self._abrir_docente()
+            self.abrir_docente()
             return
         messagebox.showerror("Error", "Credenciales incorrectas.")
 
-    def _abrir_admin(self):
-        admin_win = tb.Toplevel(self)
-        admin_win.title("Administrador")
-        admin_win.geometry("900x600")
-        marco = ttk.Frame(admin_win, padding=16)
-        marco.pack(fill="both", expand=True)
-        ttk.Label(marco, text="Panel del Administrador", font=("Segoe UI", 16, "bold")).pack(anchor="w")
+    def abrir_administrador(self):
+        if self.ventana_administrador and self.ventana_administrador.winfo_exists():
+            self.ventana_administrador.deiconify(); self.ventana_administrador.lift(); self.ventana_administrador.focus_force()
+            return
+        self.ventana_administrador = VentanaAdministrador(self, self.cursos, guardar_cursos)
+        self.ventana_administrador.protocol("WM_DELETE_WINDOW", lambda: (self.ventana_administrador.destroy(), setattr(self, "ventana_administrador", None)))
 
-    def _abrir_docente(self):
-        docente_win = tb.Toplevel(self)
-        docente_win.title("Docente")
-        docente_win.geometry("900x600")
-        marco = ttk.Frame(docente_win, padding=16)
-        marco.pack(fill="both", expand=True)
-        ttk.Label(marco, text="Panel del Docente", font=("Segoe UI", 16, "bold")).pack(anchor="w")
+    def abrir_docente(self):
+        if self.ventana_docente and self.ventana_docente.winfo_exists():
+            self.ventana_docente.deiconify(); self.ventana_docente.lift(); self.ventana_docente.focus_force()
+            return
+        self.ventana_docente = VentanaDocente(self)
+        self.ventana_docente.protocol("WM_DELETE_WINDOW", lambda: (self.ventana_docente.destroy(), setattr(self, "ventana_docente", None)))
 
-    def _limpiar(self):
+    def limpiar(self):
         self.entrada_usuario.delete(0, tk.END)
         self.entrada_contrasena.delete(0, tk.END)
         self.entrada_usuario.focus_set()
 
-    def _salir(self):
+    def salir(self):
         self.winfo_toplevel().destroy()
 
-class AppLogin(tb.Window):
+class AplicacionLogin(tb.Window):
     def __init__(self):
         super().__init__(themename="flatly")
         self.title("Login")
@@ -85,4 +85,4 @@ class AppLogin(tb.Window):
         tarjeta.pack(expand=True)
 
 if __name__ == "__main__":
-    AppLogin().mainloop()
+    AplicacionLogin().mainloop()
