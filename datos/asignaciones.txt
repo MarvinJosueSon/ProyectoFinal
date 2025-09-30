@@ -1,0 +1,4 @@
+curso_id,estudiante_id
+MAT101,E001
+MAT101,E002
+FIS201,E003

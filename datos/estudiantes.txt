@@ -1,0 +1,4 @@
+estudiante_id,carnet,nombre
+E001,2025001,Juan Pérez
+E002,2025002,María Gómez
+E003,2025003,Luis Díaz

@@ -1,0 +1,3 @@
+curso_id,nombre,docente_id
+MAT101,Matemática I,D001
+FIS201,Física II,D002

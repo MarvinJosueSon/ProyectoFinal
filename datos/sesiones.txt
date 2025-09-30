@@ -1,0 +1,3 @@
+sesion_id,curso_id,fecha,tipo,estado,hora_creacion,hora_cierre
+S1758926634,MAT101,2025-09-26,entrada,cerrada,16:43:54,18:29:56
+S1758933494,MAT101,2025-09-26,salida,cerrada,18:38:14,18:38:28

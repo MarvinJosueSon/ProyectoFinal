@@ -1,0 +1,3 @@
+estudiante_id,huella_id
+E001,101
+E002,5
