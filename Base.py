@@ -44,17 +44,25 @@ class TarjetaLogin(ttk.Frame):
             self._abrir_admin()
             return
         if usuario == "docente" and contrasena == "123":
-            messagebox.showinfo("Acceso", "Ingreso de docente correcto.")
+            self._abrir_docente()
             return
         messagebox.showerror("Error", "Credenciales incorrectas.")
 
     def _abrir_admin(self):
         admin_win = tb.Toplevel(self)
-        admin_win.title("Panel Administrador")
+        admin_win.title("Administrador")
         admin_win.geometry("900x600")
         marco = ttk.Frame(admin_win, padding=16)
         marco.pack(fill="both", expand=True)
         ttk.Label(marco, text="Panel del Administrador", font=("Segoe UI", 16, "bold")).pack(anchor="w")
+
+    def _abrir_docente(self):
+        docente_win = tb.Toplevel(self)
+        docente_win.title("Docente")
+        docente_win.geometry("900x600")
+        marco = ttk.Frame(docente_win, padding=16)
+        marco.pack(fill="both", expand=True)
+        ttk.Label(marco, text="Panel del Docente", font=("Segoe UI", 16, "bold")).pack(anchor="w")
 
     def _limpiar(self):
         self.entrada_usuario.delete(0, tk.END)
