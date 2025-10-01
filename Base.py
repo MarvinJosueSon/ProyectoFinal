@@ -13,6 +13,14 @@ from CargarGuardar import (
 from Admin_UI import VentanaAdministrador
 from Docente_UI import VentanaDocente
 
+import os
+print("CWD =>", os.getcwd())
+print("docentes.txt ABS =>", os.path.abspath("docentes.txt"))
+from CargarGuardar import cargar_docentes
+d = cargar_docentes()
+print("Usuarios leídos:", [getattr(x, "usuario", None) for x in d.values()])
+print("Contraseñas:", [getattr(x, "contrasena", None) for x in d.values()])
+
 class TarjetaLogin(ttk.Frame):
     def __init__(self, master):
         super().__init__(master, padding=24, style="card")
@@ -23,6 +31,7 @@ class TarjetaLogin(ttk.Frame):
         self.carreras = cargar_carreras()
         self.estudiantes = cargar_estudiantes()
         self.construir()
+
 
     def construir(self):
         ttk.Label(self, text="Ingreso al sistema", font=("Segoe UI", 16, "bold")).grid(row=0, column=0, columnspan=3, pady=(0,12))
@@ -45,20 +54,47 @@ class TarjetaLogin(ttk.Frame):
         self.entrada_contrasena.configure(show="" if self.ver_contrasena.get() else "*")
 
     def entrar(self):
+        from CargarGuardar import cargar_docentes
+
         usuario = self.entrada_usuario.get().strip()
         contrasena = self.entrada_contrasena.get().strip()
+
         if not usuario or not contrasena:
             messagebox.showwarning("Atención", "Ingresa el usuario y la contraseña.")
             return
+
+
         if usuario == "admin" and contrasena == "123":
             self.abrir_administrador()
             return
+
+
+        self.docentes = cargar_docentes()
+
+
         for d in self.docentes.values():
-            if d.usuario == usuario and d.contrasena == contrasena:
+
+            if d.usuario.strip() == usuario and d.contrasena.strip() == contrasena:
                 self.abrir_docente(usuario)
                 return
+
         messagebox.showerror("Error", "Credenciales incorrectas.")
 
+    def _credenciales_en_archivo(self, usuario, contrasena):
+        try:
+            with open("docentes.txt", "r", encoding="utf-8") as f:
+                for ln in f:
+                    ln = ln.strip()
+                    if not ln:
+                        continue
+                    partes = ln.split("|")
+                    if len(partes) >= 5:
+                        # formato: codigo|nombre|id_huella|usuario|contrasena
+                        if partes[3] == usuario and partes[4] == contrasena:
+                            return True
+        except FileNotFoundError:
+            pass
+        return False
     def abrir_administrador(self):
         if self.ventana_administrador and self.ventana_administrador.winfo_exists():
             self.ventana_administrador.deiconify(); self.ventana_administrador.lift(); self.ventana_administrador.focus_force()

@@ -28,16 +28,28 @@ def guardar_docentes(diccionario):
 def cargar_docentes():
     dic = {}
     try:
-        with open("docentes.txt", "r", encoding="utf-8") as f:
+        # utf-8-sig elimina BOM si el archivo lo tiene
+        with open("docentes.txt", "r", encoding="utf-8-sig") as f:
+            linea_n = 0
             for ln in f:
+                linea_n += 1
                 ln = ln.strip()
                 if not ln:
                     continue
                 partes = ln.split("|")
                 if len(partes) < 5:
+
                     continue
-                codigo, nombre, id_huella, usuario, contrasena = partes[:5]
-                dic[codigo] = Docente(codigo, nombre, int(id_huella), usuario, contrasena)
+
+                codigo = partes[0].strip()
+                nombre = partes[1].strip()
+                id_huella_str = partes[2].strip()
+                usuario = partes[3].strip()
+                contrasena = partes[4].strip()
+                if not id_huella_str.isdigit():
+
+                    continue
+                dic[codigo] = Docente(codigo, nombre, int(id_huella_str), usuario, contrasena)
     except FileNotFoundError:
         pass
     return dic

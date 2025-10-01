@@ -42,7 +42,7 @@ class VentanaAdministrador(tb.Toplevel):
         )
         pestañas.add(self.tab_cursos, text="Cursos")
 
-        # Docentes
+
         self.tab_docentes = DocentesAD(
             pestañas,
             docentes=self.docentes,
@@ -51,7 +51,7 @@ class VentanaAdministrador(tb.Toplevel):
         )
         pestañas.add(self.tab_docentes, text="Docentes")
 
-        # Carreras -> cuando cambien, refrescar combo en Estudiantes
+
         def _carreras_cambiadas():
             if hasattr(self, "tab_estudiantes"):
                 self.tab_estudiantes.actualizar_combo_carreras()
@@ -64,7 +64,7 @@ class VentanaAdministrador(tb.Toplevel):
         )
         pestañas.add(self.tab_carreras, text="Carreras")
 
-        # Estudiantes
+
         self.tab_estudiantes = EstudiantesAD(
             pestañas,
             estudiantes=self.estudiantes,

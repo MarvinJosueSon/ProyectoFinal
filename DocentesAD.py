@@ -59,7 +59,7 @@ class DocentesAD(ttk.Frame):
 
         self.refrescar_docentes()
 
-    # ---- Lógica (idéntica) ----
+
     def guardar_docente(self):
         codigo = self.entrada_codigo_doc.get().strip()
         nombre = self.entrada_nombre_doc.get().strip()

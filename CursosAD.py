@@ -43,7 +43,7 @@ class CursosAD(ttk.Frame):
 
         self.refrescar_cursos()
 
-    # ---- Lógica (idéntica a la original) ----
+
     def guardar_curso(self):
         id_curso = self.entrada_id_curso.get().strip()
         nombre = self.entrada_nombre_curso.get().strip()
