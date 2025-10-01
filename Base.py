@@ -1,10 +1,15 @@
-# Base.py (solo cambia abrir_docente para pasar cursos)
+# Base.py
 import tkinter as tk
 import ttkbootstrap as tb
 from ttkbootstrap import ttk
 from ttkbootstrap.constants import *
 from tkinter import messagebox
-from CargarGuardar import guardar_cursos, cargar_cursos, guardar_docentes, cargar_docentes
+from CargarGuardar import (
+    guardar_cursos, cargar_cursos,
+    guardar_docentes, cargar_docentes,
+    guardar_carreras, cargar_carreras,
+    guardar_estudiantes, cargar_estudiantes
+)
 from Admin_UI import VentanaAdministrador
 from Docente_UI import VentanaDocente
 
@@ -14,7 +19,9 @@ class TarjetaLogin(ttk.Frame):
         self.ventana_administrador = None
         self.ventana_docente = None
         self.cursos = cargar_cursos()
-        self.docentes = cargar_docentes(self.cursos)
+        self.docentes = cargar_docentes()
+        self.carreras = cargar_carreras()
+        self.estudiantes = cargar_estudiantes()
         self.construir()
 
     def construir(self):
@@ -55,7 +62,11 @@ class TarjetaLogin(ttk.Frame):
         if self.ventana_administrador and self.ventana_administrador.winfo_exists():
             self.ventana_administrador.deiconify(); self.ventana_administrador.lift(); self.ventana_administrador.focus_force()
             return
-        self.ventana_administrador = VentanaAdministrador(self, self.cursos, self.docentes, guardar_cursos, guardar_docentes)
+        self.ventana_administrador = VentanaAdministrador(
+            self,
+            self.cursos, self.docentes, self.carreras, self.estudiantes,
+            guardar_cursos, guardar_docentes, guardar_carreras, guardar_estudiantes
+        )
         self.ventana_administrador.protocol("WM_DELETE_WINDOW", lambda: (self.ventana_administrador.destroy(), setattr(self, "ventana_administrador", None)))
 
     def abrir_docente(self):

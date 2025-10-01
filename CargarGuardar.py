@@ -1,43 +1,84 @@
 # CargarGuardar.py
-from Clases import Curso, Docente
+from Clases import Curso, Docente, Carrera, Estudiante
 
 def guardar_cursos(diccionario):
     with open("cursos.txt", "w", encoding="utf-8") as archivo:
-        for curso in diccionario.values():
-            archivo.write(f"{curso.id_curso}:{curso.nombre}\n")
+        for c in diccionario.values():
+            archivo.write(f"{c.id_curso}:{c.nombre}\n")
 
 def cargar_cursos():
-    diccionario = {}
+    dic = {}
     try:
-        with open("cursos.txt", "r", encoding="utf-8") as archivo:
-            for linea in archivo:
-                linea = linea.strip()
-                if not linea:
+        with open("cursos.txt", "r", encoding="utf-8") as f:
+            for ln in f:
+                ln = ln.strip()
+                if not ln:
                     continue
-                id_curso, nombre = linea.split(":", 1)
-                diccionario[id_curso] = Curso(id_curso, nombre)
+                id_curso, nombre = ln.split(":", 1)
+                dic[id_curso] = Curso(id_curso, nombre)
     except FileNotFoundError:
         pass
-    return diccionario
+    return dic
 
 def guardar_docentes(diccionario):
     with open("docentes.txt", "w", encoding="utf-8") as archivo:
         for d in diccionario.values():
-            ids_cursos = ",".join(d.cursos.keys())
-            archivo.write(f"{d.codigo}|{d.nombre}|{d.id_huella}|{d.usuario}|{d.contrasena}|{ids_cursos}\n")
+            archivo.write(f"{d.codigo}|{d.nombre}|{d.id_huella}|{d.usuario}|{d.contrasena}\n")
 
-def cargar_docentes(cursos_existentes):
-    diccionario = {}
+def cargar_docentes():
+    dic = {}
     try:
-        with open("docentes.txt", "r", encoding="utf-8") as archivo:
-            for linea in archivo:
-                linea = linea.strip()
-                if not linea:
+        with open("docentes.txt", "r", encoding="utf-8") as f:
+            for ln in f:
+                ln = ln.strip()
+                if not ln:
                     continue
-                codigo, nombre, id_huella, usuario, contrasena, ids = linea.split("|")
-                ids_lista = [x for x in ids.split(",") if x] if ids else []
-                cursos_map = {cid: (cursos_existentes[cid].nombre if cid in cursos_existentes else cid) for cid in ids_lista}
-                diccionario[codigo] = Docente(codigo, nombre, int(id_huella), usuario, contrasena, cursos_map)
+                partes = ln.split("|")
+                if len(partes) < 5:
+                    continue
+                codigo, nombre, id_huella, usuario, contrasena = partes[:5]
+                dic[codigo] = Docente(codigo, nombre, int(id_huella), usuario, contrasena)
     except FileNotFoundError:
         pass
-    return diccionario
+    return dic
+
+def guardar_carreras(diccionario):
+    with open("carreras.txt", "w", encoding="utf-8") as archivo:
+        for c in diccionario.values():
+            archivo.write(f"{c.codigo}:{c.nombre}\n")
+
+def cargar_carreras():
+    dic = {}
+    try:
+        with open("carreras.txt", "r", encoding="utf-8") as f:
+            for ln in f:
+                ln = ln.strip()
+                if not ln:
+                    continue
+                codigo, nombre = ln.split(":", 1)
+                dic[codigo] = Carrera(codigo, nombre)
+    except FileNotFoundError:
+        pass
+    return dic
+
+def guardar_estudiantes(diccionario):
+    with open("estudiantes.txt", "w", encoding="utf-8") as archivo:
+        for e in diccionario.values():
+            archivo.write(f"{e.codigo}|{e.nombre}|{e.id_huella}|{e.id_carrera}\n")
+
+def cargar_estudiantes():
+    dic = {}
+    try:
+        with open("estudiantes.txt", "r", encoding="utf-8") as f:
+            for ln in f:
+                ln = ln.strip()
+                if not ln:
+                    continue
+                partes = ln.split("|")
+                if len(partes) < 4:
+                    continue
+                codigo, nombre, id_huella, id_carrera = partes[:4]
+                dic[codigo] = Estudiante(codigo, nombre, int(id_huella), id_carrera)
+    except FileNotFoundError:
+        pass
+    return dic

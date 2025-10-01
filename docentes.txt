@@ -1,0 +1,2 @@
+123|Juana|1500|Juana|123
+123456|Pedro Caj|187878787|Pedro|123
