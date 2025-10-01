@@ -53,9 +53,10 @@ class TarjetaLogin(ttk.Frame):
         if usuario == "admin" and contrasena == "123":
             self.abrir_administrador()
             return
-        if usuario == "docente" and contrasena == "123":
-            self.abrir_docente()
-            return
+        for d in self.docentes.values():
+            if d.usuario == usuario and d.contrasena == contrasena:
+                self.abrir_docente(usuario)
+                return
         messagebox.showerror("Error", "Credenciales incorrectas.")
 
     def abrir_administrador(self):
@@ -65,15 +66,19 @@ class TarjetaLogin(ttk.Frame):
         self.ventana_administrador = VentanaAdministrador(
             self,
             self.cursos, self.docentes, self.carreras, self.estudiantes,
-            guardar_cursos, guardar_docentes, guardar_carreras, guardar_estudiantes
+            guardar_cursos, guardar_docentes, guardar_carreras, guardar_estudiantes,
+            on_docentes_actualizados=self.actualizar_docentes
         )
         self.ventana_administrador.protocol("WM_DELETE_WINDOW", lambda: (self.ventana_administrador.destroy(), setattr(self, "ventana_administrador", None)))
 
-    def abrir_docente(self):
+    def actualizar_docentes(self, nuevos_dic):
+        self.docentes = nuevos_dic
+
+    def abrir_docente(self, usuario_docente):
         if self.ventana_docente and self.ventana_docente.winfo_exists():
             self.ventana_docente.deiconify(); self.ventana_docente.lift(); self.ventana_docente.focus_force()
             return
-        self.ventana_docente = VentanaDocente(self, self.cursos)
+        self.ventana_docente = VentanaDocente(self, self.cursos, self.estudiantes, usuario_docente)
         self.ventana_docente.protocol("WM_DELETE_WINDOW", lambda: (self.ventana_docente.destroy(), setattr(self, "ventana_docente", None)))
 
     def limpiar(self):
