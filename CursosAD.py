@@ -26,7 +26,7 @@ class CursosAD(ttk.Frame):
         ttk.Button(marco_botones, text="Guardar", bootstyle="success", command=self.guardar_curso).pack(side="left", padx=4)
         ttk.Button(marco_botones, text="Eliminar", bootstyle="danger", command=self.eliminar_curso).pack(side="left", padx=4)
         ttk.Button(marco_botones, text="Limpiar", bootstyle="info", command=self.limpiar_curso).pack(side="left", padx=4)
-        ttk.Button(marco_botones, text="Refrescar", bootstyle="secondary", command=self.refrescar_cursos).pack(side="left", padx=4)
+        #ttk.Button(marco_botones, text="Refrescar", bootstyle="secondary", command=self.refrescar_cursos).pack(side="left", padx=4)
         ttk.Button(marco_botones, text="Actualizar", bootstyle="warning", command=self.actualizar_curso).pack(side="left", padx=4)
 
         marco_tabla = ttk.Frame(self)

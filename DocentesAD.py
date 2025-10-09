@@ -37,6 +37,7 @@ class DocentesAD(ttk.Frame):
         ttk.Button(marco_botones_doc, text="Guardar Docente", bootstyle="success", command=self.guardar_docente).pack(side="left", padx=4)
         ttk.Button(marco_botones_doc, text="Limpiar", bootstyle="info", command=self.limpiar_docente).pack(side="left", padx=4)
         ttk.Button(marco_botones_doc, text="Eliminar Docente", bootstyle="danger", command=self.eliminar_docente).pack(side="left", padx=4)
+        ttk.Button(marco_botones_doc, text="Actualizar Docente", bootstyle="warning",command=self.actualizar_docente).pack(side="left", padx=4)
 
         marco_tabla_doc = ttk.Frame(self)
         marco_tabla_doc.pack(fill="both", expand=True)
@@ -136,3 +137,58 @@ class DocentesAD(ttk.Frame):
             messagebox.showinfo("Confirmación", f"Docente eliminado: {codigo}")
         else:
             messagebox.showerror("Error", "No existe un docente con ese código.")
+
+    def actualizar_docente(self):
+        nuevo_codigo = self.entrada_codigo_doc.get().strip()
+        nombre = self.entrada_nombre_doc.get().strip()
+        id_huella = self.entrada_huella_doc.get().strip()
+        usuario = self.entrada_usuario_doc.get().strip()
+        contrasena = self.entrada_contrasena_doc.get().strip()
+
+        if not nuevo_codigo or not nombre or not id_huella or not usuario or not contrasena:
+            messagebox.showwarning("Atención", "Completa todos los campos del docente.")
+            return
+        if not id_huella.isdigit():
+            messagebox.showwarning("Atención", "ID Huella debe ser numérico.")
+            return
+
+        old_cod = None
+        sel = self.tabla_docentes.selection()
+        if sel:
+            vals = self.tabla_docentes.item(sel[0], "values")
+            if vals:
+                old_cod = vals[0]
+        if old_cod is None and nuevo_codigo in self.docentes:
+            old_cod = nuevo_codigo
+        if old_cod is None:
+            messagebox.showwarning("Atención",
+                                   "Selecciona el docente a modificar (o asegúrate que el código actual exista).")
+            return
+
+        if nuevo_codigo != old_cod:
+            if nuevo_codigo in self.docentes:
+                messagebox.showerror("Error", "Ya existe un docente con ese nuevo código.")
+                return
+            doc = self.docentes.pop(old_cod)
+            doc.codigo = nuevo_codigo
+            doc.nombre = nombre
+            doc.id_huella = int(id_huella)
+            doc.usuario = usuario
+            doc.contrasena = contrasena
+            self.docentes[nuevo_codigo] = doc
+        else:
+            doc = self.docentes.get(old_cod)
+            if not doc:
+                messagebox.showerror("Error", "No se encontró el docente a modificar.")
+                return
+            doc.nombre = nombre
+            doc.id_huella = int(id_huella)
+            doc.usuario = usuario
+            doc.contrasena = contrasena
+
+        self.guardar_docentes_cb(self.docentes)
+        if self.on_docentes_actualizados:
+            self.on_docentes_actualizados(self.docentes)
+        self.refrescar_docentes()
+        messagebox.showinfo("Confirmación", f"Docente actualizado: {nuevo_codigo} - {nombre}")
+
