@@ -27,6 +27,7 @@ class CursosAD(ttk.Frame):
         ttk.Button(marco_botones, text="Eliminar", bootstyle="danger", command=self.eliminar_curso).pack(side="left", padx=4)
         ttk.Button(marco_botones, text="Limpiar", bootstyle="info", command=self.limpiar_curso).pack(side="left", padx=4)
         ttk.Button(marco_botones, text="Refrescar", bootstyle="secondary", command=self.refrescar_cursos).pack(side="left", padx=4)
+        ttk.Button(marco_botones, text="Actualizar", bootstyle="warning", command=self.actualizar_curso).pack(side="left", padx=4)
 
         marco_tabla = ttk.Frame(self)
         marco_tabla.pack(fill="both", expand=True)
@@ -104,3 +105,49 @@ class CursosAD(ttk.Frame):
         self.entrada_nombre_curso.delete(0, tk.END)
         self.entrada_id_curso.insert(0, vals[0])
         self.entrada_nombre_curso.insert(0, vals[1])
+
+    def actualizar_curso(self):
+        nuevo_id = self.entrada_id_curso.get().strip()
+        nuevo_nombre = self.entrada_nombre_curso.get().strip()
+
+        if not nuevo_id or not nuevo_nombre:
+            messagebox.showwarning("Atención", "Completa ID y Nombre del curso.")
+            return
+        if ":" in nuevo_id or ":" in nuevo_nombre:
+            messagebox.showwarning("Atención", "No usar ':' en los campos.")
+            return
+
+        old_id = None
+        sel = self.tabla_cursos.selection()
+        if sel:
+            vals = self.tabla_cursos.item(sel[0], "values")
+            if vals:
+                old_id = vals[0]
+        if old_id is None and nuevo_id in self.cursos:
+            old_id = nuevo_id
+        if old_id is None:
+            messagebox.showwarning("Atención", "Selecciona el curso a modificar (o asegúrate que el ID actual exista).")
+            return
+
+        if nuevo_id != old_id:
+            if nuevo_id in self.cursos:
+                messagebox.showerror("Error", "Ya existe un curso con ese nuevo ID.")
+                return
+            curso = self.cursos.pop(old_id)
+            curso.id_curso = nuevo_id
+            curso.nombre = nuevo_nombre
+            self.cursos[nuevo_id] = curso
+        else:
+            curso = self.cursos.get(old_id)
+            if not curso:
+                messagebox.showerror("Error", "No se encontró el curso a modificar.")
+                return
+            curso.nombre = nuevo_nombre
+
+        self.guardar_cursos_cb(self.cursos)
+        self.refrescar_cursos()
+        for iid in self.tabla_cursos.get_children():
+            if self.tabla_cursos.item(iid, "values")[0] == nuevo_id:
+                self.tabla_cursos.selection_set(iid)
+                break
+        messagebox.showinfo("Confirmación", f"Curso actualizado: {nuevo_id} - {nuevo_nombre}")
