@@ -1,2 +1,2 @@
-999999:Logica
-88888:Quimica
+1000:Logica
+1001:Quimicas

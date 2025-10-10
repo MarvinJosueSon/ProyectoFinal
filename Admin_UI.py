@@ -15,7 +15,7 @@ class VentanaAdministrador(tb.Toplevel):
         self.title("Administrador")
         self.geometry("1100x760")
 
-        # Datos y callbacks
+
         self.cursos = cursos
         self.docentes = docentes
         self.carreras = carreras
@@ -34,7 +34,7 @@ class VentanaAdministrador(tb.Toplevel):
         pestañas = ttk.Notebook(contenedor)
         pestañas.pack(fill="both", expand=True)
 
-        # Cursos
+
         self.tab_cursos = CursosAD(
             pestañas,
             cursos=self.cursos,

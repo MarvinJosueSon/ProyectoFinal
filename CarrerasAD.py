@@ -27,7 +27,8 @@ class CarrerasAD(ttk.Frame):
         ttk.Button(marco_btn_car, text="Guardar", bootstyle="success", command=self.guardar_carrera).pack(side="left", padx=4)
         ttk.Button(marco_btn_car, text="Eliminar", bootstyle="danger", command=self.eliminar_carrera).pack(side="left", padx=4)
         ttk.Button(marco_btn_car, text="Limpiar", bootstyle="info", command=self.limpiar_carrera).pack(side="left", padx=4)
-        ttk.Button(marco_btn_car, text="Refrescar", bootstyle="secondary", command=self.refrescar_carreras).pack(side="left", padx=4)
+        #ttk.Button(marco_btn_car, text="Refrescar", bootstyle="secondary", command=self.refrescar_carreras).pack(side="left", padx=4)
+
 
         marco_tabla_car = ttk.Frame(self)
         marco_tabla_car.pack(fill="both", expand=True)
