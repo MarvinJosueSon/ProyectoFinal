@@ -129,7 +129,7 @@ def obtener_docente_por_usuario(usuario: str) -> Optional[Docente]:
     return Docente(*row) if row else None
 
 def obtener_docente_por_usuario_y_contrasena(usuario: str, contrasena: str) -> Optional[Docente]:
-    """Útil para el Login."""
+  
     init_db()
     con = _conn(); cur = con.cursor()
     cur.execute("""SELECT codigo, nombre, id_huella, usuario, contrasena

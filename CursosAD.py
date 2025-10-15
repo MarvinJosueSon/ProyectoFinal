@@ -2,20 +2,21 @@
 import tkinter as tk
 from ttkbootstrap import ttk
 from tkinter import messagebox
-from Clases import Curso, Eliminador
+from Clases import Curso
+from DB_Manager import listar_cursos, insertar_curso, actualizar_curso, eliminar_curso, obtener_curso
 
 class CursosAD(ttk.Frame):
-    def __init__(self, master, cursos: dict, guardar_cursos_cb):
+    def __init__(self, master, cursos=None, guardar_cursos_cb=None):
         super().__init__(master, padding=12)
-        self.cursos = cursos
-        self.guardar_cursos_cb = guardar_cursos_cb
         self._construir()
 
     def _construir(self):
         marco_formulario = ttk.Frame(self)
         marco_formulario.pack(fill="x", pady=(0,8))
+
         ttk.Label(marco_formulario, text="ID del curso:").grid(row=0, column=0, sticky="e", padx=6, pady=6)
         ttk.Label(marco_formulario, text="Nombre del curso:").grid(row=1, column=0, sticky="e", padx=6, pady=6)
+
         self.entrada_id_curso = ttk.Entry(marco_formulario, width=30)
         self.entrada_nombre_curso = ttk.Entry(marco_formulario, width=40)
         self.entrada_id_curso.grid(row=0, column=1, padx=6, pady=6)
@@ -24,10 +25,9 @@ class CursosAD(ttk.Frame):
         marco_botones = ttk.Frame(self)
         marco_botones.pack(fill="x", pady=(0,8))
         ttk.Button(marco_botones, text="Guardar", bootstyle="success", command=self.guardar_curso).pack(side="left", padx=4)
+        ttk.Button(marco_botones, text="Actualizar", bootstyle="secondary", command=self.actualizar_curso).pack(side="left", padx=4)
         ttk.Button(marco_botones, text="Eliminar", bootstyle="danger", command=self.eliminar_curso).pack(side="left", padx=4)
         ttk.Button(marco_botones, text="Limpiar", bootstyle="info", command=self.limpiar_curso).pack(side="left", padx=4)
-        #ttk.Button(marco_botones, text="Refrescar", bootstyle="secondary", command=self.refrescar_cursos).pack(side="left", padx=4)
-        ttk.Button(marco_botones, text="Actualizar", bootstyle="warning", command=self.actualizar_curso).pack(side="left", padx=4)
 
         marco_tabla = ttk.Frame(self)
         marco_tabla.pack(fill="both", expand=True)
@@ -44,47 +44,66 @@ class CursosAD(ttk.Frame):
 
         self.refrescar_cursos()
 
-
+    # ---- CRUD con SQLite ----
     def guardar_curso(self):
         id_curso = self.entrada_id_curso.get().strip()
         nombre = self.entrada_nombre_curso.get().strip()
         if not id_curso or not nombre:
             messagebox.showwarning("Atención", "Completa ID y Nombre del curso.")
             return
-        if ":" in id_curso or ":" in nombre:
-            messagebox.showwarning("Atención", "No usar ':' en los campos.")
-            return
-        if id_curso in self.cursos:
+        if obtener_curso(id_curso):
             messagebox.showerror("Error", "El ID del curso ya existe.")
             return
-        self.cursos[id_curso] = Curso(id_curso, nombre)
-        self.guardar_cursos_cb(self.cursos)
+        try:
+            insertar_curso(Curso(id_curso, nombre))
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo guardar: {e}")
+            return
         self.refrescar_cursos()
         messagebox.showinfo("Confirmación", f"Curso creado: {id_curso} - {nombre}")
         self.limpiar_curso()
 
-    def eliminar_curso(self):
-        id_curso = self.entrada_id_curso.get().strip()
-        if not id_curso:
-            sel = self.tabla_cursos.selection()
-            if sel:
-                vals = self.tabla_cursos.item(sel[0], "values")
-                if vals:
-                    id_curso = vals[0]
-        if not id_curso:
-            messagebox.showwarning("Atención", "Selecciona o ingresa el ID del curso a eliminar.")
+    def actualizar_curso(self):
+        sel = self.tabla_cursos.selection()
+        if not sel:
+            messagebox.showwarning("Atención", "Selecciona un curso en la tabla para actualizar.")
             return
+        vals = self.tabla_cursos.item(sel[0], "values")
+        old_id = vals[0]
+        nuevo = Curso(self.entrada_id_curso.get().strip(), self.entrada_nombre_curso.get().strip())
+        if not nuevo.id_curso or not nuevo.nombre:
+            messagebox.showwarning("Atención", "Completa los campos antes de actualizar.")
+            return
+        try:
+            # Si cambias el ID, validamos que el nuevo ID no exista
+            if old_id != nuevo.id_curso and obtener_curso(nuevo.id_curso):
+                messagebox.showerror("Error", "El nuevo ID de curso ya existe.")
+                return
+            actualizar_curso(old_id, nuevo)
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo actualizar: {e}")
+            return
+        self.refrescar_cursos()
+        messagebox.showinfo("Confirmación", f"Curso actualizado: {nuevo.id_curso}")
+
+    def eliminar_curso(self):
+        sel = self.tabla_cursos.selection()
+        if not sel:
+            messagebox.showwarning("Atención", "Selecciona un curso en la tabla para eliminar.")
+            return
+        id_curso = self.tabla_cursos.item(sel[0], "values")[0]
         if not messagebox.askyesno("Confirmación", f"¿Eliminar el curso '{id_curso}'?"):
             return
-        eliminador = Eliminador(self.cursos)
-        if eliminador.eliminar(id_curso):
-            self.guardar_cursos_cb(self.cursos)
-            self.refrescar_cursos()
-            self.limpiar_curso()
-            messagebox.showinfo("Confirmación", f"Curso eliminado: {id_curso}")
-        else:
-            messagebox.showerror("Error", "No existe un curso con ese ID.")
+        try:
+            eliminar_curso(id_curso)
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo eliminar: {e}")
+            return
+        self.refrescar_cursos()
+        self.limpiar_curso()
+        messagebox.showinfo("Confirmación", f"Curso eliminado: {id_curso}")
 
+    # ---- Helpers UI ----
     def limpiar_curso(self):
         self.entrada_id_curso.delete(0, tk.END)
         self.entrada_nombre_curso.delete(0, tk.END)
@@ -93,7 +112,7 @@ class CursosAD(ttk.Frame):
     def refrescar_cursos(self):
         for iid in self.tabla_cursos.get_children():
             self.tabla_cursos.delete(iid)
-        for c in self.cursos.values():
+        for c in listar_cursos():
             self.tabla_cursos.insert("", "end", values=(c.id_curso, c.nombre))
 
     def seleccionar_curso(self, _):
@@ -105,49 +124,3 @@ class CursosAD(ttk.Frame):
         self.entrada_nombre_curso.delete(0, tk.END)
         self.entrada_id_curso.insert(0, vals[0])
         self.entrada_nombre_curso.insert(0, vals[1])
-
-    def actualizar_curso(self):
-        nuevo_id = self.entrada_id_curso.get().strip()
-        nuevo_nombre = self.entrada_nombre_curso.get().strip()
-
-        if not nuevo_id or not nuevo_nombre:
-            messagebox.showwarning("Atención", "Completa ID y Nombre del curso.")
-            return
-        if ":" in nuevo_id or ":" in nuevo_nombre:
-            messagebox.showwarning("Atención", "No usar ':' en los campos.")
-            return
-
-        old_id = None
-        sel = self.tabla_cursos.selection()
-        if sel:
-            vals = self.tabla_cursos.item(sel[0], "values")
-            if vals:
-                old_id = vals[0]
-        if old_id is None and nuevo_id in self.cursos:
-            old_id = nuevo_id
-        if old_id is None:
-            messagebox.showwarning("Atención", "Selecciona el curso a modificar (o asegúrate que el ID actual exista).")
-            return
-
-        if nuevo_id != old_id:
-            if nuevo_id in self.cursos:
-                messagebox.showerror("Error", "Ya existe un curso con ese nuevo ID.")
-                return
-            curso = self.cursos.pop(old_id)
-            curso.id_curso = nuevo_id
-            curso.nombre = nuevo_nombre
-            self.cursos[nuevo_id] = curso
-        else:
-            curso = self.cursos.get(old_id)
-            if not curso:
-                messagebox.showerror("Error", "No se encontró el curso a modificar.")
-                return
-            curso.nombre = nuevo_nombre
-
-        self.guardar_cursos_cb(self.cursos)
-        self.refrescar_cursos()
-        for iid in self.tabla_cursos.get_children():
-            if self.tabla_cursos.item(iid, "values")[0] == nuevo_id:
-                self.tabla_cursos.selection_set(iid)
-                break
-        messagebox.showinfo("Confirmación", f"Curso actualizado: {nuevo_id} - {nuevo_nombre}")

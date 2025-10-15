@@ -1,14 +1,13 @@
-# CarrerasAD.py
+#CarrerasAD.py
 import tkinter as tk
 from ttkbootstrap import ttk
 from tkinter import messagebox
-from Clases import Carrera, Eliminador
+from Clases import Carrera
+from DB_Manager import listar_carreras, insertar_carrera, eliminar_carrera, actualizar_carrera, obtener_carrera
 
 class CarrerasAD(ttk.Frame):
-    def __init__(self, master, carreras: dict, guardar_carreras_cb, on_carreras_cambiadas=None):
+    def __init__(self, master, carreras=None, guardar_carreras_cb=None, on_carreras_cambiadas=None):
         super().__init__(master, padding=12)
-        self.carreras = carreras
-        self.guardar_carreras_cb = guardar_carreras_cb
         self.on_carreras_cambiadas = on_carreras_cambiadas
         self._construir()
 
@@ -25,10 +24,9 @@ class CarrerasAD(ttk.Frame):
         marco_btn_car = ttk.Frame(self)
         marco_btn_car.pack(fill="x", pady=(0,8))
         ttk.Button(marco_btn_car, text="Guardar", bootstyle="success", command=self.guardar_carrera).pack(side="left", padx=4)
+        ttk.Button(marco_btn_car, text="Actualizar", bootstyle="secondary", command=self.actualizar_carrera).pack(side="left", padx=4)
         ttk.Button(marco_btn_car, text="Eliminar", bootstyle="danger", command=self.eliminar_carrera).pack(side="left", padx=4)
         ttk.Button(marco_btn_car, text="Limpiar", bootstyle="info", command=self.limpiar_carrera).pack(side="left", padx=4)
-        #ttk.Button(marco_btn_car, text="Refrescar", bootstyle="secondary", command=self.refrescar_carreras).pack(side="left", padx=4)
-
 
         marco_tabla_car = ttk.Frame(self)
         marco_tabla_car.pack(fill="both", expand=True)
@@ -45,49 +43,52 @@ class CarrerasAD(ttk.Frame):
 
         self.refrescar_carreras()
 
-    # ---- Lógica (idéntica) ----
+    # ---- CRUD con SQLite ----
     def guardar_carrera(self):
         codigo = self.entrada_id_carrera.get().strip()
         nombre = self.entrada_nombre_carrera.get().strip()
         if not codigo or not nombre:
             messagebox.showwarning("Atención", "Completa ID y Nombre de la carrera.")
             return
-        if ":" in codigo or ":" in nombre:
-            messagebox.showwarning("Atención", "No usar ':' en los campos.")
-            return
-        if codigo in self.carreras:
+        if obtener_carrera(codigo):
             messagebox.showerror("Error", "El ID de la carrera ya existe.")
             return
-        self.carreras[codigo] = Carrera(codigo, nombre)
-        self.guardar_carreras_cb(self.carreras)
+        insertar_carrera(Carrera(codigo, nombre))
         self.refrescar_carreras()
         if self.on_carreras_cambiadas:
             self.on_carreras_cambiadas()
-        messagebox.showinfo("Confirmación", f"Carrera creada: {codigo} - {nombre}")
+        messagebox.showinfo("Confirmación", f"Carrera guardada: {codigo}")
         self.limpiar_carrera()
 
-    def eliminar_carrera(self):
-        codigo = self.entrada_id_carrera.get().strip()
-        if not codigo:
-            sel = self.tabla_carreras.selection()
-            if sel:
-                vals = self.tabla_carreras.item(sel[0], "values")
-                if vals:
-                    codigo = vals[0]
-        if not codigo:
-            messagebox.showwarning("Atención", "Selecciona o ingresa el ID de la carrera a eliminar.")
+    def actualizar_carrera(self):
+        sel = self.tabla_carreras.selection()
+        if not sel:
+            messagebox.showwarning("Atención", "Selecciona una carrera para actualizar.")
             return
+        vals = self.tabla_carreras.item(sel[0], "values")
+        old_codigo = vals[0]
+        nuevo = Carrera(self.entrada_id_carrera.get().strip(), self.entrada_nombre_carrera.get().strip())
+        if not nuevo.codigo or not nuevo.nombre:
+            messagebox.showwarning("Atención", "Completa los campos antes de actualizar.")
+            return
+        actualizar_carrera(old_codigo, nuevo)
+        self.refrescar_carreras()
+        messagebox.showinfo("Confirmación", f"Carrera actualizada: {nuevo.codigo}")
+
+    def eliminar_carrera(self):
+        sel = self.tabla_carreras.selection()
+        if not sel:
+            messagebox.showwarning("Atención", "Selecciona una carrera para eliminar.")
+            return
+        vals = self.tabla_carreras.item(sel[0], "values")
+        codigo = vals[0]
         if not messagebox.askyesno("Confirmación", f"¿Eliminar la carrera '{codigo}'?"):
             return
-        eliminador = Eliminador(self.carreras)
-        if eliminador.eliminar(codigo):
-            self.guardar_carreras_cb(self.carreras)
-            self.refrescar_carreras()
-            if self.on_carreras_cambiadas:
-                self.on_carreras_cambiadas()
-            messagebox.showinfo("Confirmación", f"Carrera eliminada: {codigo}")
-        else:
-            messagebox.showerror("Error", "No existe una carrera con ese ID.")
+        eliminar_carrera(codigo)
+        self.refrescar_carreras()
+        if self.on_carreras_cambiadas:
+            self.on_carreras_cambiadas()
+        messagebox.showinfo("Confirmación", f"Carrera eliminada: {codigo}")
 
     def limpiar_carrera(self):
         self.entrada_id_carrera.delete(0, tk.END)
@@ -97,7 +98,7 @@ class CarrerasAD(ttk.Frame):
     def refrescar_carreras(self):
         for iid in self.tabla_carreras.get_children():
             self.tabla_carreras.delete(iid)
-        for c in self.carreras.values():
+        for c in listar_carreras():
             self.tabla_carreras.insert("", "end", values=(c.codigo, c.nombre))
 
     def seleccionar_carrera(self, _):
