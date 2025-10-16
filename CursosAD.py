@@ -5,6 +5,7 @@ from tkinter import messagebox
 from Clases import Curso
 from DB_Manager import listar_cursos, insertar_curso, actualizar_curso, eliminar_curso, obtener_curso
 
+
 class CursosAD(ttk.Frame):
     def __init__(self, master, cursos=None, guardar_cursos_cb=None):
         super().__init__(master, padding=12)
@@ -25,7 +26,7 @@ class CursosAD(ttk.Frame):
         marco_botones = ttk.Frame(self)
         marco_botones.pack(fill="x", pady=(0,8))
         ttk.Button(marco_botones, text="Guardar", bootstyle="success", command=self.guardar_curso).pack(side="left", padx=4)
-        ttk.Button(marco_botones, text="Actualizar", bootstyle="secondary", command=self.actualizar_curso).pack(side="left", padx=4)
+        ttk.Button(marco_botones, text="Modificar", bootstyle="secondary", command=self.actualizar_curso).pack(side="left", padx=4)
         ttk.Button(marco_botones, text="Eliminar", bootstyle="danger", command=self.eliminar_curso).pack(side="left", padx=4)
         ttk.Button(marco_botones, text="Limpiar", bootstyle="info", command=self.limpiar_curso).pack(side="left", padx=4)
 

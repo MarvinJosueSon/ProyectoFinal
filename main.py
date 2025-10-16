@@ -17,9 +17,9 @@ def main():
     # Cambiar directorio de trabajo al del proyecto
     os.chdir(project_dir)
 
-    print("🚀 Iniciando sistema de asistencia...")
-    print(f"📂 Directorio actual: {project_dir}")
-    print(f"▶ Ejecutando: {base_path.name}")
+    print("Iniciando sistema de asistencia...")
+    print(f"Directorio actual: {project_dir}")
+    print(f"Ejecutando: {base_path.name}")
 
     # Ejecutar Base.py con el mismo intérprete
     try:
