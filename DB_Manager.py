@@ -100,7 +100,20 @@ def eliminar_curso(id_curso: str) -> None:
     con = _conn(); cur = con.cursor()
     cur.execute("DELETE FROM cursos WHERE id_curso=?;", (id_curso,))
     con.commit(); con.close()
-
+def buscar_cursos(term: str) -> List[Curso]:
+    """Búsqueda case-insensitive por id_curso o nombre."""
+    init_db()
+    con = _conn(); cur = con.cursor()
+    like = f"%{term.lower()}%"
+    cur.execute("""
+        SELECT id_curso, nombre
+        FROM cursos
+        WHERE LOWER(id_curso) LIKE ? OR LOWER(nombre) LIKE ?
+        ORDER BY id_curso;
+    """, (like, like))
+    data = [Curso(idc, nom) for idc, nom in cur.fetchall()]
+    con.close()
+    return data
 
 # DOCENTES
 
@@ -167,6 +180,31 @@ def eliminar_docente(codigo: str) -> None:
     cur.execute("DELETE FROM docentes WHERE codigo=?;", (codigo,))
     con.commit(); con.close()
 
+def buscar_docentes(term: str) -> List[Docente]:
+    """Búsqueda case-insensitive por código, nombre, usuario.
+    Si 'term' es numérico, también filtra por id_huella."""
+    init_db()
+    con = _conn(); cur = con.cursor()
+    like = f"%{term.lower()}%"
+    if term.isdigit():
+        cur.execute("""
+            SELECT codigo, nombre, id_huella, usuario, contrasena
+            FROM docentes
+            WHERE LOWER(codigo) LIKE ? OR LOWER(nombre) LIKE ?
+               OR LOWER(usuario) LIKE ? OR id_huella = ?
+            ORDER BY codigo;
+        """, (like, like, like, int(term)))
+    else:
+        cur.execute("""
+            SELECT codigo, nombre, id_huella, usuario, contrasena
+            FROM docentes
+            WHERE LOWER(codigo) LIKE ? OR LOWER(nombre) LIKE ?
+               OR LOWER(usuario) LIKE ?
+            ORDER BY codigo;
+        """, (like, like, like))
+    data = [Docente(c, n, int(h), u, p) for c, n, h, u, p in cur.fetchall()]
+    con.close()
+    return data
 
 # CARRERAS
 
@@ -210,6 +248,20 @@ def eliminar_carrera(codigo: str) -> None:
     cur.execute("DELETE FROM carreras WHERE codigo=?;", (codigo,))
     con.commit(); con.close()
 
+def buscar_carreras(term: str) -> List[Carrera]:
+    """Búsqueda case-insensitive por código o nombre de carrera."""
+    init_db()
+    con = _conn(); cur = con.cursor()
+    like = f"%{term.lower()}%"
+    cur.execute("""
+        SELECT codigo, nombre
+        FROM carreras
+        WHERE LOWER(codigo) LIKE ? OR LOWER(nombre) LIKE ?
+        ORDER BY codigo;
+    """, (like, like))
+    data = [Carrera(c, n) for c, n in cur.fetchall()]
+    con.close()
+    return data
 
 # ESTUDIANTES
 def listar_estudiantes() -> List[Estudiante]:
@@ -256,3 +308,36 @@ def eliminar_estudiante(codigo: str) -> None:
     con = _conn(); cur = con.cursor()
     cur.execute("DELETE FROM estudiantes WHERE codigo=?;", (codigo,))
     con.commit(); con.close()
+def buscar_estudiantes(term: str) -> List[Estudiante]:
+    """Búsqueda case-insensitive por código, nombre, carrera (código o nombre).
+    Si 'term' es numérico, también filtra por id_huella (exacto)."""
+    init_db()
+    con = _conn(); cur = con.cursor()
+    like = f"%{term.lower()}%"
+    if term.isdigit():
+        cur.execute("""
+            SELECT e.codigo, e.nombre, e.id_huella, e.id_carrera
+            FROM estudiantes e
+            LEFT JOIN carreras c ON c.codigo = e.id_carrera
+            WHERE LOWER(e.codigo)   LIKE ?
+               OR LOWER(e.nombre)   LIKE ?
+               OR LOWER(e.id_carrera) LIKE ?
+               OR LOWER(c.nombre)   LIKE ?
+               OR e.id_huella = ?
+            ORDER BY e.codigo;
+        """, (like, like, like, like, int(term)))
+    else:
+        cur.execute("""
+            SELECT e.codigo, e.nombre, e.id_huella, e.id_carrera
+            FROM estudiantes e
+            LEFT JOIN carreras c ON c.codigo = e.id_carrera
+            WHERE LOWER(e.codigo)   LIKE ?
+               OR LOWER(e.nombre)   LIKE ?
+               OR LOWER(e.id_carrera) LIKE ?
+               OR LOWER(c.nombre)   LIKE ?
+            ORDER BY e.codigo;
+        """, (like, like, like, like))
+    data = [Estudiante(cod, nom, int(h), car) for cod, nom, h, car in cur.fetchall()]
+    con.close()
+    return data
+

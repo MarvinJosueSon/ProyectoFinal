@@ -6,8 +6,9 @@ from Clases import Estudiante
 from DB_Manager import (
     listar_estudiantes, obtener_estudiante, insertar_estudiante,
     actualizar_estudiante, eliminar_estudiante,
-    listar_carreras
+    listar_carreras, buscar_estudiantes
 )
+
 
 class EstudiantesAD(ttk.Frame):
     def __init__(self, master, estudiantes=None, carreras=None, guardar_estudiantes_cb=None):
@@ -16,6 +17,19 @@ class EstudiantesAD(ttk.Frame):
 
     # ------------------- UI -------------------
     def _construir(self):
+        # --- Búsqueda ---
+        marco_buscar_est = ttk.Frame(self)
+        marco_buscar_est.pack(fill="x", pady=(0,8))
+
+        ttk.Label(marco_buscar_est, text="Buscar:").pack(side="left", padx=(0,6))
+        self.entrada_buscar_est = ttk.Entry(marco_buscar_est, width=40)
+        self.entrada_buscar_est.pack(side="left")
+        ttk.Button(marco_buscar_est, text="Limpiar búsqueda", bootstyle="secondary",
+                   command=self.limpiar_busqueda_est).pack(side="left", padx=6)
+
+        # Filtrar mientras escribe
+        self.entrada_buscar_est.bind("<KeyRelease>", lambda e: self.refrescar_estudiantes())
+
         marco_est = ttk.Frame(self)
         marco_est.pack(fill="x", pady=(0,8))
 
@@ -38,11 +52,11 @@ class EstudiantesAD(ttk.Frame):
 
         marco_btn_est = ttk.Frame(self)
         marco_btn_est.pack(fill="x", pady=(8,8))
-        ttk.Button(marco_btn_est, text="Guardar Estudiante", bootstyle="success", command=self.guardar_estudiante).pack(side="left", padx=4)
-        ttk.Button(marco_btn_est, text="Actualizar", bootstyle="secondary", command=self.actualizar_estudiante).pack(side="left", padx=4)
+        ttk.Button(marco_btn_est, text="Guardar", bootstyle="success", command=self.guardar_estudiante).pack(side="left", padx=4)
+        ttk.Button(marco_btn_est, text="Modficar", bootstyle="secondary", command=self.actualizar_estudiante).pack(side="left", padx=4)
         ttk.Button(marco_btn_est, text="Eliminar", bootstyle="danger", command=self.eliminar_estudiante).pack(side="left", padx=4)
-        ttk.Button(marco_btn_est, text="Limpiar", bootstyle="info", command=self.limpiar_estudiante).pack(side="left", padx=4)
-        ttk.Button(marco_btn_est, text="Refrescar", command=self.refrescar_estudiantes).pack(side="left", padx=4)
+        #ttk.Button(marco_btn_est, text="Limpiar", bootstyle="info", command=self.limpiar_estudiante).pack(side="left", padx=4)
+        #ttk.Button(marco_btn_est, text="Refrescar", command=self.refrescar_estudiantes).pack(side="left", padx=4)
 
         marco_tabla_est = ttk.Frame(self)
         marco_tabla_est.pack(fill="both", expand=True)
@@ -165,12 +179,22 @@ class EstudiantesAD(ttk.Frame):
     # ----------------- Tabla/selección -----------------
     def refrescar_estudiantes(self):
         self._cargar_carreras_combo()  # por si cambiaron carreras
+
+        term = ""
+        try:
+            term = self.entrada_buscar_est.get().strip()
+        except Exception:
+            pass  # primer render
+
         for iid in self.tabla_estudiantes.get_children():
             self.tabla_estudiantes.delete(iid)
-        for e in listar_estudiantes():
-            self.tabla_estudiantes.insert("", "end", values=(
-                e.codigo, e.nombre, e.id_huella, self._nombre_carrera(e.id_carrera)
-            ))
+
+        estudiantes = buscar_estudiantes(term) if term else listar_estudiantes()
+        for e in estudiantes:
+            self.tabla_estudiantes.insert(
+                "", "end",
+                values=(e.codigo, e.nombre, e.id_huella, self._nombre_carrera(e.id_carrera))
+            )
 
     def seleccionar_estudiante(self, _):
         sel = self.tabla_estudiantes.selection()
@@ -194,3 +218,8 @@ class EstudiantesAD(ttk.Frame):
         self.entrada_huella_est.delete(0, tk.END)
         self.combo_carrera_est.set("")
         self.entrada_codigo_est.focus_set()
+    def limpiar_busqueda_est(self):
+        if hasattr(self, "entrada_buscar_est"):
+            self.entrada_buscar_est.delete(0, tk.END)
+        self.refrescar_estudiantes()
+

@@ -5,7 +5,8 @@ from tkinter import messagebox
 from Clases import Docente
 from DB_Manager import (
     listar_docentes, obtener_docente_por_codigo,
-    insertar_docente, actualizar_docente, eliminar_docente
+    insertar_docente, actualizar_docente, eliminar_docente,
+    buscar_docentes
 )
 
 class DocentesAD(ttk.Frame):
@@ -14,6 +15,18 @@ class DocentesAD(ttk.Frame):
         self._construir()
 
     def _construir(self):
+        # --- Búsqueda ---
+        marco_buscar_doc = ttk.Frame(self)
+        marco_buscar_doc.pack(fill="x", pady=(0, 8))
+
+        ttk.Label(marco_buscar_doc, text="Buscar:").pack(side="left", padx=(0, 6))
+        self.entrada_buscar_doc = ttk.Entry(marco_buscar_doc, width=40)
+        self.entrada_buscar_doc.pack(side="left")
+        ttk.Button(marco_buscar_doc, text="Limpiar búsqueda", bootstyle="secondary",
+                   command=self.limpiar_busqueda_doc).pack(side="left", padx=6)
+
+        # Filtrar mientras escribe
+        self.entrada_buscar_doc.bind("<KeyRelease>", lambda e: self.refrescar_docentes())
         marco_doc = ttk.Frame(self)
         marco_doc.pack(fill="x", pady=(0,8))
 
@@ -38,11 +51,11 @@ class DocentesAD(ttk.Frame):
         # Botones
         marco_botones_doc = ttk.Frame(self)
         marco_botones_doc.pack(fill="x", pady=(8,8))
-        ttk.Button(marco_botones_doc, text="Guardar Docente", bootstyle="success", command=self.guardar_docente).pack(side="left", padx=4)
-        ttk.Button(marco_botones_doc, text="Actualizar", bootstyle="secondary", command=self.actualizar_docente).pack(side="left", padx=4)
-        ttk.Button(marco_botones_doc, text="Eliminar Docente", bootstyle="danger", command=self.eliminar_docente).pack(side="left", padx=4)
-        ttk.Button(marco_botones_doc, text="Limpiar", bootstyle="info", command=self.limpiar_docente).pack(side="left", padx=4)
-        ttk.Button(marco_botones_doc, text="Refrescar", command=self.refrescar_docentes).pack(side="left", padx=4)
+        ttk.Button(marco_botones_doc, text="Guardar", bootstyle="success", command=self.guardar_docente).pack(side="left", padx=4)
+        ttk.Button(marco_botones_doc, text="Modificar", bootstyle="secondary", command=self.actualizar_docente).pack(side="left", padx=4)
+        ttk.Button(marco_botones_doc, text="Eliminar", bootstyle="danger", command=self.eliminar_docente).pack(side="left", padx=4)
+        #ttk.Button(marco_botones_doc, text="Limpiar", bootstyle="info", command=self.limpiar_docente).pack(side="left", padx=4)
+        #ttk.Button(marco_botones_doc, text="Refrescar", command=self.refrescar_docentes).pack(side="left", padx=4)
 
         # Tabla
         marco_tabla_doc = ttk.Frame(self)
@@ -167,12 +180,18 @@ class DocentesAD(ttk.Frame):
         self.entrada_codigo_doc.focus_set()
 
     def refrescar_docentes(self):
+        term = ""
+        try:
+            term = self.entrada_buscar_doc.get().strip()
+        except Exception:
+            pass  # primer render
+
         for iid in self.tabla_docentes.get_children():
             self.tabla_docentes.delete(iid)
-        for d in listar_docentes():
-            self.tabla_docentes.insert("", "end",
-                values=(d.codigo, d.nombre, d.usuario, d.contrasena, d.id_huella)
-            )
+
+        docentes = buscar_docentes(term) if term else listar_docentes()
+        for d in docentes:
+            self.tabla_docentes.insert("", "end",values=(d.codigo, d.nombre, d.usuario, d.contrasena, d.id_huella) )
 
     def seleccionar_docente(self, _):
         sel = self.tabla_docentes.selection()
@@ -190,3 +209,8 @@ class DocentesAD(ttk.Frame):
         self.entrada_usuario_doc.insert(0, vals[2])
         self.entrada_contrasena_doc.insert(0, vals[3])
         self.entrada_huella_doc.insert(0, vals[4])
+
+    def limpiar_busqueda_doc(self):
+        if hasattr(self, "entrada_buscar_doc"):
+            self.entrada_buscar_doc.delete(0, tk.END)
+        self.refrescar_docentes()

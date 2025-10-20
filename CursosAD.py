@@ -3,7 +3,7 @@ import tkinter as tk
 from ttkbootstrap import ttk
 from tkinter import messagebox
 from Clases import Curso
-from DB_Manager import listar_cursos, insertar_curso, actualizar_curso, eliminar_curso, obtener_curso
+from DB_Manager import listar_cursos, insertar_curso, actualizar_curso, eliminar_curso, obtener_curso,buscar_cursos
 
 
 class CursosAD(ttk.Frame):
@@ -12,6 +12,19 @@ class CursosAD(ttk.Frame):
         self._construir()
 
     def _construir(self):
+        # --- Búsqueda ---
+        marco_buscar = ttk.Frame(self)
+        marco_buscar.pack(fill="x", pady=(0, 8))
+
+        ttk.Label(marco_buscar, text="Buscar:").pack(side="left", padx=(0, 6))
+        self.entrada_buscar = ttk.Entry(marco_buscar, width=40)
+        self.entrada_buscar.pack(side="left")
+        ttk.Button(marco_buscar, text="Limpiar búsqueda", bootstyle="secondary",
+                   command=self.limpiar_busqueda).pack(side="left", padx=6)
+
+        # Filtrar mientras escribe
+        self.entrada_buscar.bind("<KeyRelease>", lambda e: self.refrescar_cursos())
+
         marco_formulario = ttk.Frame(self)
         marco_formulario.pack(fill="x", pady=(0,8))
 
@@ -28,7 +41,7 @@ class CursosAD(ttk.Frame):
         ttk.Button(marco_botones, text="Guardar", bootstyle="success", command=self.guardar_curso).pack(side="left", padx=4)
         ttk.Button(marco_botones, text="Modificar", bootstyle="secondary", command=self.actualizar_curso).pack(side="left", padx=4)
         ttk.Button(marco_botones, text="Eliminar", bootstyle="danger", command=self.eliminar_curso).pack(side="left", padx=4)
-        ttk.Button(marco_botones, text="Limpiar", bootstyle="info", command=self.limpiar_curso).pack(side="left", padx=4)
+        #ttk.Button(marco_botones, text="Limpiar", bootstyle="info", command=self.limpiar_curso).pack(side="left", padx=4)
 
         marco_tabla = ttk.Frame(self)
         marco_tabla.pack(fill="both", expand=True)
@@ -111,9 +124,17 @@ class CursosAD(ttk.Frame):
         self.entrada_id_curso.focus_set()
 
     def refrescar_cursos(self):
+        term = ""
+        try:
+            term = self.entrada_buscar.get().strip()
+        except Exception:
+            pass  # primer render, aún no existe el widget
+
         for iid in self.tabla_cursos.get_children():
             self.tabla_cursos.delete(iid)
-        for c in listar_cursos():
+
+        cursos = buscar_cursos(term) if term else listar_cursos()
+        for c in cursos:
             self.tabla_cursos.insert("", "end", values=(c.id_curso, c.nombre))
 
     def seleccionar_curso(self, _):
@@ -125,3 +146,8 @@ class CursosAD(ttk.Frame):
         self.entrada_nombre_curso.delete(0, tk.END)
         self.entrada_id_curso.insert(0, vals[0])
         self.entrada_nombre_curso.insert(0, vals[1])
+
+    def limpiar_busqueda(self):
+        if hasattr(self, "entrada_buscar"):
+            self.entrada_buscar.delete(0, tk.END)
+        self.refrescar_cursos()

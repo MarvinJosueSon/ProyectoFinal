@@ -3,7 +3,8 @@ import tkinter as tk
 from ttkbootstrap import ttk
 from tkinter import messagebox
 from Clases import Carrera
-from DB_Manager import listar_carreras, insertar_carrera, eliminar_carrera, actualizar_carrera, obtener_carrera
+from DB_Manager import listar_carreras, insertar_carrera, eliminar_carrera, actualizar_carrera, obtener_carrera, buscar_carreras
+
 
 class CarrerasAD(ttk.Frame):
     def __init__(self, master, carreras=None, guardar_carreras_cb=None, on_carreras_cambiadas=None):
@@ -12,6 +13,19 @@ class CarrerasAD(ttk.Frame):
         self._construir()
 
     def _construir(self):
+        # --- Búsqueda ---
+        marco_buscar_car = ttk.Frame(self)
+        marco_buscar_car.pack(fill="x", pady=(0,8))
+
+        ttk.Label(marco_buscar_car, text="Buscar:").pack(side="left", padx=(0,6))
+        self.entrada_buscar_car = ttk.Entry(marco_buscar_car, width=40)
+        self.entrada_buscar_car.pack(side="left")
+        ttk.Button(marco_buscar_car, text="Limpiar búsqueda", bootstyle="secondary",
+                   command=self.limpiar_busqueda_car).pack(side="left", padx=6)
+
+        # Filtrar mientras escribe
+        self.entrada_buscar_car.bind("<KeyRelease>", lambda e: self.refrescar_carreras())
+
         marco_car = ttk.Frame(self)
         marco_car.pack(fill="x", pady=(0,8))
         ttk.Label(marco_car, text="ID Carrera:").grid(row=0, column=0, sticky="e", padx=6, pady=6)
@@ -24,9 +38,9 @@ class CarrerasAD(ttk.Frame):
         marco_btn_car = ttk.Frame(self)
         marco_btn_car.pack(fill="x", pady=(0,8))
         ttk.Button(marco_btn_car, text="Guardar", bootstyle="success", command=self.guardar_carrera).pack(side="left", padx=4)
-        ttk.Button(marco_btn_car, text="Actualizar", bootstyle="secondary", command=self.actualizar_carrera).pack(side="left", padx=4)
+        ttk.Button(marco_btn_car, text="Modificar", bootstyle="secondary", command=self.actualizar_carrera).pack(side="left", padx=4)
         ttk.Button(marco_btn_car, text="Eliminar", bootstyle="danger", command=self.eliminar_carrera).pack(side="left", padx=4)
-        ttk.Button(marco_btn_car, text="Limpiar", bootstyle="info", command=self.limpiar_carrera).pack(side="left", padx=4)
+        #ttk.Button(marco_btn_car, text="Limpiar", bootstyle="info", command=self.limpiar_carrera).pack(side="left", padx=4)
 
         marco_tabla_car = ttk.Frame(self)
         marco_tabla_car.pack(fill="both", expand=True)
@@ -96,9 +110,17 @@ class CarrerasAD(ttk.Frame):
         self.entrada_id_carrera.focus_set()
 
     def refrescar_carreras(self):
+        term = ""
+        try:
+            term = self.entrada_buscar_car.get().strip()
+        except Exception:
+            pass  # primer render
+
         for iid in self.tabla_carreras.get_children():
             self.tabla_carreras.delete(iid)
-        for c in listar_carreras():
+
+        carreras = buscar_carreras(term) if term else listar_carreras()
+        for c in carreras:
             self.tabla_carreras.insert("", "end", values=(c.codigo, c.nombre))
 
     def seleccionar_carrera(self, _):
@@ -110,3 +132,8 @@ class CarrerasAD(ttk.Frame):
         self.entrada_nombre_carrera.delete(0, tk.END)
         self.entrada_id_carrera.insert(0, vals[0])
         self.entrada_nombre_carrera.insert(0, vals[1])
+    def limpiar_busqueda_car(self):
+        if hasattr(self, "entrada_buscar_car"):
+            self.entrada_buscar_car.delete(0, tk.END)
+        self.refrescar_carreras()
+
