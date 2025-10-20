@@ -65,7 +65,7 @@ class ControlAsistencia:
     def registro(self):
         return {"hora_entrada": self.hora_entrada, "hora_salida": self.hora_salida}
 
-def ordenar_quicksort(lista: List, clave: Callable) -> List:
+"""def ordenar_quicksort(lista: List, clave: Callable) -> List:
     if len(lista) <= 1:
         return lista
     pivote = lista[len(lista) // 2]
@@ -73,7 +73,7 @@ def ordenar_quicksort(lista: List, clave: Callable) -> List:
     izquierda = [x for x in lista if clave(x) < valor_pivote]
     medio = [x for x in lista if clave(x) == valor_pivote]
     derecha = [x for x in lista if clave(x) > valor_pivote]
-    return ordenar_quicksort(izquierda, clave) + medio + ordenar_quicksort(derecha, clave)
+    return ordenar_quicksort(izquierda, clave) + medio + ordenar_quicksort(derecha, clave)"""
 
 class Buscador:
     def __init__(self, diccionario: Dict[str, object]):

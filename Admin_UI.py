@@ -1,7 +1,6 @@
 #Admin_UI.Py
 import ttkbootstrap as tb
 from ttkbootstrap import ttk
-
 from CursosAD import CursosAD
 from DocentesAD import DocentesAD
 from CarrerasAD import CarrerasAD

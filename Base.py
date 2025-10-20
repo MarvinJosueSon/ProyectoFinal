@@ -4,11 +4,9 @@ import ttkbootstrap as tb
 from ttkbootstrap import ttk
 from ttkbootstrap.constants import *
 from tkinter import messagebox
-
 from DB_Manager import init_db, obtener_docente_por_usuario_y_contrasena
 from Admin_UI import VentanaAdministrador
 from Docente_UI import VentanaDocente
-
 
 class TarjetaLogin(ttk.Frame):
     def __init__(self, master):

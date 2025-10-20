@@ -27,7 +27,7 @@ def init_db() -> None:
     # --- Carreras ---
     cur.execute("""
     CREATE TABLE IF NOT EXISTS carreras (
-        codigo TEXT PRIMARY KEY,
+        codigo TEXT(50) PRIMARY KEY,
         nombre TEXT NOT NULL
     );
     """)
