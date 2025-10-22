@@ -58,6 +58,7 @@ class CursosAD(ttk.Frame):
 
         self.refrescar_cursos()
 
+
     # ---- CRUD con SQLite ----
     def guardar_curso(self):
         id_curso = self.entrada_id_curso.get().strip()

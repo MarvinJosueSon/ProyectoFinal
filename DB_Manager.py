@@ -341,3 +341,27 @@ def buscar_estudiantes(term: str) -> List[Estudiante]:
     con.close()
     return data
 
+def huella_en_uso(id_huella: int) -> bool:
+    init_db()
+    con = _conn(); cur = con.cursor()
+    cur.execute("SELECT 1 FROM docentes WHERE id_huella = ? LIMIT 1;", (int(id_huella),))
+    if cur.fetchone():
+        con.close(); return True
+    cur.execute("SELECT 1 FROM estudiantes WHERE id_huella = ? LIMIT 1;", (int(id_huella),))
+    usado = cur.fetchone() is not None
+    con.close()
+    return usado
+
+def sugerir_id_huella_libre(min_id: int = 1, max_id: int = 127):
+    init_db()
+    con = _conn(); cur = con.cursor()
+    cur.execute("SELECT id_huella FROM docentes WHERE id_huella BETWEEN ? AND ?;", (min_id, max_id))
+    usados_doc = {int(x[0]) for x in cur.fetchall() if x[0] is not None}
+    cur.execute("SELECT id_huella FROM estudiantes WHERE id_huella BETWEEN ? AND ?;", (min_id, max_id))
+    usados_est = {int(x[0]) for x in cur.fetchall() if x[0] is not None}
+    con.close()
+    usados = usados_doc | usados_est
+    for i in range(min_id, max_id + 1):
+        if i not in usados:
+            return i
+    return None

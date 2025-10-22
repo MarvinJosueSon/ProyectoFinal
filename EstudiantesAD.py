@@ -8,6 +8,10 @@ from DB_Manager import (
     actualizar_estudiante, eliminar_estudiante,
     listar_carreras, buscar_estudiantes
 )
+from Huella import enrolar_huella_con_id
+from DB_Manager import huella_en_uso, sugerir_id_huella_libre
+
+
 
 
 class EstudiantesAD(ttk.Frame):
@@ -48,6 +52,9 @@ class EstudiantesAD(ttk.Frame):
         self.entrada_codigo_est.grid(row=0, column=1, padx=6, pady=6)
         self.entrada_nombre_est.grid(row=1, column=1, padx=6, pady=6)
         self.entrada_huella_est.grid(row=2, column=1, padx=6, pady=6)
+        btn_capturar = ttk.Button(marco_est, text="Capturar (auto)", bootstyle="info", command=self.capturar_huella_est_auto)
+        btn_capturar.grid(row=2, column=2, padx=6, pady=6, sticky="w")
+
         self.combo_carrera_est.grid(row=0, column=3, padx=6, pady=6, sticky="w")
 
         marco_btn_est = ttk.Frame(self)
@@ -76,6 +83,28 @@ class EstudiantesAD(ttk.Frame):
         self.tabla_estudiantes.bind("<<TreeviewSelect>>", self.seleccionar_estudiante)
 
         self.refrescar_estudiantes()
+
+    def capturar_huella_est_auto(self):
+        try:
+            id_libre = sugerir_id_huella_libre(1, 127)
+            if id_libre is None:
+                messagebox.showerror("Huella", "No hay IDs libres (1-127).")
+                return
+            if huella_en_uso(id_libre):
+                messagebox.showerror("Huella", f"El ID {id_libre} se ocupó. Intenta de nuevo.")
+                return
+
+            messagebox.showinfo("Huella", f"Coloca el dedo en el lector.\nSe usará el ID {id_libre}.")
+            ok = enrolar_huella_con_id(id_libre)
+            if not ok:
+                messagebox.showerror("Huella", "No se pudo enrolar la huella. Intenta de nuevo.")
+                return
+
+            self.entrada_huella_est.delete(0, tk.END)
+            self.entrada_huella_est.insert(0, str(id_libre))
+            messagebox.showinfo("Huella", f"Huella enrolada con ID {id_libre}.")
+        except Exception as e:
+            messagebox.showerror("Huella", f"Error: {e}")
 
     # ----------------- Helpers -----------------
     def _cargar_carreras_combo(self):

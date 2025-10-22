@@ -6,8 +6,11 @@ from Clases import Docente
 from DB_Manager import (
     listar_docentes, obtener_docente_por_codigo,
     insertar_docente, actualizar_docente, eliminar_docente,
-    buscar_docentes
+    buscar_docentes,huella_en_uso, sugerir_id_huella_libre
 )
+from Huella import enrolar_huella_con_id
+from DB_Manager import huella_en_uso, sugerir_id_huella_libre
+
 
 class DocentesAD(ttk.Frame):
     def __init__(self, master, docentes=None, guardar_docentes_cb=None, on_docentes_actualizados=None):
@@ -45,6 +48,9 @@ class DocentesAD(ttk.Frame):
         self.entrada_codigo_doc.grid(row=0, column=1, padx=6, pady=6)
         self.entrada_nombre_doc.grid(row=1, column=1, padx=6, pady=6)
         self.entrada_huella_doc.grid(row=2, column=1, padx=6, pady=6)
+        btn_capturar = ttk.Button(marco_doc, text="Capturar (auto)", bootstyle="info", command=self.capturar_huella_doc_auto)
+        btn_capturar.grid(row=2, column=2, padx=6, pady=6, sticky="w")
+
         self.entrada_usuario_doc.grid(row=0, column=3, padx=6, pady=6)
         self.entrada_contrasena_doc.grid(row=1, column=3, padx=6, pady=6)
 
@@ -86,6 +92,28 @@ class DocentesAD(ttk.Frame):
         self.tabla_docentes.bind("<<TreeviewSelect>>", self.seleccionar_docente)
 
         self.refrescar_docentes()
+
+    def capturar_huella_doc_auto(self):
+        try:
+            id_libre = sugerir_id_huella_libre(1, 127)
+            if id_libre is None:
+                messagebox.showerror("Huella", "No hay IDs libres (1-127).")
+                return
+            if huella_en_uso(id_libre):
+                messagebox.showerror("Huella", f"El ID {id_libre} se ocupó. Intenta de nuevo.")
+                return
+
+            messagebox.showinfo("Huella", f"Coloca el dedo en el lector.\nSe usará el ID {id_libre}.")
+            ok = enrolar_huella_con_id(id_libre)
+            if not ok:
+                messagebox.showerror("Huella", "No se pudo enrolar la huella. Intenta de nuevo.")
+                return
+
+            self.entrada_huella_doc.delete(0, tk.END)
+            self.entrada_huella_doc.insert(0, str(id_libre))
+            messagebox.showinfo("Huella", f"Huella enrolada con ID {id_libre}.")
+        except Exception as e:
+            messagebox.showerror("Huella", f"Error: {e}")
 
     # ------------------ CRUD (SQLite) ------------------
     def guardar_docente(self):
