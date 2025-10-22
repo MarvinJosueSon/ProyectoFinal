@@ -4,6 +4,7 @@ import sys
 import subprocess
 from pathlib import Path
 
+#Funcionando
 def main():
 
     project_dir = Path(__file__).resolve().parent
