@@ -5,6 +5,7 @@ from CursosAD import CursosAD
 from DocentesAD import DocentesAD
 from CarrerasAD import CarrerasAD
 from EstudiantesAD import EstudiantesAD
+from SensorHuellasAD import SensorHuellasAD
 
 class VentanaAdministrador(tb.Toplevel):
     def __init__(self, master):
@@ -43,3 +44,6 @@ class VentanaAdministrador(tb.Toplevel):
         # Estudiantes
         self.tab_estudiantes = EstudiantesAD(pestañas)
         pestañas.add(self.tab_estudiantes, text="Estudiantes")
+
+        self.tab_sensor = SensorHuellasAD(pestañas)
+        pestañas.add(self.tab_sensor, text="Sensor de Huellas")

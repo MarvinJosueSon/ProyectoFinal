@@ -191,9 +191,35 @@ class EstudiantesAD(ttk.Frame):
         if not sel:
             messagebox.showwarning("Atención", "Selecciona un estudiante en la tabla para eliminar.")
             return
-        codigo = self.tabla_estudiantes.item(sel[0], "values")[0]
-        if not messagebox.askyesno("Confirmación", f"¿Eliminar el estudiante '{codigo}'?"):
+
+        vals = self.tabla_estudiantes.item(sel[0], "values")
+        codigo = vals[0]
+        nombre = vals[1]
+        id_huella = vals[2]
+
+        if not messagebox.askyesno("Confirmación",
+                                   f"¿Eliminar el estudiante '{codigo} - {nombre}' de la base de datos?"):
             return
+
+        # ¿Borrar huella del sensor también?
+        try:
+            if str(id_huella).strip().isdigit():
+                if messagebox.askyesno("Sensor de huellas",
+                                       f"El estudiante tiene ID de huella {id_huella}.\n¿Deseas borrar también esta huella del sensor?"):
+                    from Huella import existe_huella, borrar_huella_id
+                    try:
+                        if existe_huella(int(id_huella)):
+                            ok = borrar_huella_id(int(id_huella))
+                            if ok:
+                                messagebox.showinfo("Sensor", f"Huella {id_huella} borrada del sensor.")
+                            else:
+                                messagebox.showwarning("Sensor", f"No se pudo borrar la huella {id_huella} del sensor.")
+                        else:
+                            messagebox.showinfo("Sensor", "El ID de huella no existe en el sensor.")
+                    except Exception as e:
+                        messagebox.showerror("Sensor", f"Error al comunicarse con el sensor: {e}")
+        except Exception:
+            pass
 
         try:
             eliminar_estudiante(codigo)
