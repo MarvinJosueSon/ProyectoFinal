@@ -4,8 +4,7 @@ import ttkbootstrap as tb
 from ttkbootstrap import ttk
 from datetime import datetime
 
-from DB_Manager import obtener_docente_por_usuario, listar_carreras
-
+from DB_Manager import obtener_docente_por_usuario, listar_carreras,listar_cursos
 
 class VentanaDocente(tb.Toplevel):
 
@@ -33,6 +32,7 @@ class VentanaDocente(tb.Toplevel):
         # --- Estado UI ---
         self.var_docente = tk.StringVar(value=nombre_para_titulo.strip("'"))
         self.var_jornada = tk.StringVar()
+        self.var_curso = tk.StringVar()
         self.var_fecha = tk.StringVar()
         self.var_hora = tk.StringVar()
         self.var_carrera = tk.StringVar()
@@ -40,6 +40,7 @@ class VentanaDocente(tb.Toplevel):
         # --- Construcción UI ---
         self._construir_ui()
         self._cargar_carreras()
+        self._cargar_cursos()
         self._tick_reloj()  # inicia actualización de fecha/hora
 
     # -------------------- UI --------------------
@@ -109,6 +110,10 @@ class VentanaDocente(tb.Toplevel):
         ttk.Label(fila2, text="Carrera:").grid(row=0, column=4, sticky="e", padx=(18, 6))
         self.combo_carrera = ttk.Combobox(fila2, textvariable=self.var_carrera, state="readonly", width=36)
         self.combo_carrera.grid(row=0, column=5, sticky="w")
+
+        ttk.Label(fila2, text="Curso:").grid(row=0, column=6, sticky="e", padx=(18, 6))
+        self.combo_curso = ttk.Combobox(fila2, textvariable=self.var_curso, state="readonly", width=36)
+        self.combo_curso.grid(row=0, column=7, sticky="w")
 
         # Separador
         ttk.Separator(parent).pack(fill="x", pady=12)
@@ -193,6 +198,17 @@ class VentanaDocente(tb.Toplevel):
         except Exception:
             # Si no cargan, dejamos el combobox vacío
             self.combo_carrera.configure(values=[])
+
+    def _cargar_cursos(self):
+        """Carga cursos al combobox con formato 'ID - Nombre' (sin filtrar)."""
+        try:
+            cursos = listar_cursos()
+            values = [f"{c.id_curso} - {c.nombre}" for c in cursos]
+            self.combo_curso.configure(values=values)
+            if values:
+                self.combo_curso.current(0)
+        except Exception:
+            self.combo_curso.configure(values=[])
 
     def _tick_reloj(self):
         """Actualiza Fecha y Hora cada segundo (desde el sistema)."""
