@@ -1,10 +1,18 @@
 # Docente_UI.py
 import tkinter as tk
+from tkinter import messagebox
 import ttkbootstrap as tb
 from ttkbootstrap import ttk
 from datetime import datetime
 
-from DB_Manager import obtener_docente_por_usuario, listar_carreras,listar_cursos
+from DB_Manager import (
+    obtener_docente_por_usuario, listar_carreras, listar_cursos,
+    listar_estudiantes_por_carrera, obtener_estudiante_por_huella,
+    crear_sesion_asistencia, cerrar_sesion_asistencia, registrar_evento_asistencia,
+    listar_sesiones, listar_eventos_por_sesion
+)
+from Huella import verificar_huella
+
 
 class VentanaDocente(tb.Toplevel):
 
@@ -32,15 +40,28 @@ class VentanaDocente(tb.Toplevel):
         # --- Estado UI ---
         self.var_docente = tk.StringVar(value=nombre_para_titulo.strip("'"))
         self.var_jornada = tk.StringVar()
+        self.var_carrera = tk.StringVar()
         self.var_curso = tk.StringVar()
         self.var_fecha = tk.StringVar()
         self.var_hora = tk.StringVar()
-        self.var_carrera = tk.StringVar()
+
+        # Estado de sesión de asistencia
+        self.sesion_id = None
+        self._escuchando = False
+        self._loop_id = None
+        self.presentes = set()  # códigos de estudiante ya registrados en la sesión
 
         # --- Construcción UI ---
         self._construir_ui()
+
+        # Carga inicial de combos y datos
         self._cargar_carreras()
         self._cargar_cursos()
+        self.combo_carrera.bind("<<ComboboxSelected>>", lambda e: self._precargar_estudiantes())
+        self._precargar_estudiantes()
+        self._cargar_historial()
+
+        # Reloj
         self._tick_reloj()  # inicia actualización de fecha/hora
 
     # -------------------- UI --------------------
@@ -61,16 +82,14 @@ class VentanaDocente(tb.Toplevel):
         Cuaderno = ttk.Notebook(cont)
         Cuaderno.pack(fill="both", expand=True)
 
-        # --- Pestaña: Tomar asistencia (solo visual) ---
+        # --- Pestaña: Tomar asistencia ---
         tab_asistencia = ttk.Frame(Cuaderno, padding=12)
         Cuaderno.add(tab_asistencia, text="Tomar asistencia")
-
         self._construir_tab_asistencia(tab_asistencia)
 
-        # --- Pestaña: Historial (solo visual) ---
+        # --- Pestaña: Historial ---
         tab_historial = ttk.Frame(Cuaderno, padding=12)
         Cuaderno.add(tab_historial, text="Historial")
-
         self._construir_tab_historial(tab_historial)
 
     def _construir_tab_asistencia(self, parent: ttk.Frame):
@@ -97,7 +116,7 @@ class VentanaDocente(tb.Toplevel):
         self.combo_jornada.grid(row=0, column=3, sticky="w")
         self.combo_jornada.current(0)  # default Matutina
 
-        # Fila 2: Fecha y Hora (auto) + Carrera
+        # Fila 2: Fecha y Hora (auto) + Carrera + Curso
         fila2 = ttk.Frame(marco)
         fila2.pack(fill="x", pady=6)
 
@@ -118,8 +137,8 @@ class VentanaDocente(tb.Toplevel):
         # Separador
         ttk.Separator(parent).pack(fill="x", pady=12)
 
-        # Placeholder de tabla/listado de estudiantes (visual)
-        marco_lista = ttk.Labelframe(parent, text="Listado de estudiantes (vista previa)", padding=12)
+        # Tabla de estudiantes
+        marco_lista = ttk.Labelframe(parent, text="Listado de estudiantes", padding=12)
         marco_lista.pack(fill="both", expand=True)
 
         cols = ("codigo", "nombre", "carrera")
@@ -137,21 +156,15 @@ class VentanaDocente(tb.Toplevel):
         self.tabla_prev.pack(side="left", fill="both", expand=True)
         scroll_prev.pack(side="right", fill="y")
 
-        # Nota de que es solo visual por ahora
-        ttk.Label(
-            parent,
-            text="* Esta es solo la interfaz visual. La funcionalidad se activará en el siguiente paso.",
-            bootstyle="secondary"
-        ).pack(anchor="w", pady=(8, 0))
-
-        # Botones (deshabilitados por ahora para dejar claro que es visual)
+        # Barra de acciones
         barra_botones = ttk.Frame(parent)
         barra_botones.pack(fill="x", pady=(8, 0))
-        ttk.Button(barra_botones, text="Cargar estudiantes", state="disabled").pack(side="left", padx=4)
-        ttk.Button(barra_botones, text="Guardar asistencia", state="disabled").pack(side="right", padx=4)
+        ttk.Button(barra_botones, text="Iniciar asistencia", bootstyle="success",
+                   command=self.iniciar_asistencia).pack(side="left", padx=4)
+        ttk.Button(barra_botones, text="Terminar asistencia", bootstyle="danger",
+                   command=self.terminar_asistencia).pack(side="left", padx=4)
 
     def _construir_tab_historial(self, parent: ttk.Frame):
-        # Solo UI: tabla vacía por ahora
         marco = ttk.Labelframe(parent, text="Historial de tomas de asistencia", padding=12)
         marco.pack(fill="both", expand=True)
 
@@ -179,16 +192,15 @@ class VentanaDocente(tb.Toplevel):
         self.tabla_hist.pack(side="left", fill="both", expand=True)
         scroll.pack(side="right", fill="y")
 
-        # Mensaje de placeholder
-        ttk.Label(
-            parent,
-            text="* Historial en modo vista — conectaremos la base de datos en el siguiente paso.",
-            bootstyle="secondary"
-        ).pack(anchor="w", pady=(8, 0))
+        # Barra de historial
+        barra = ttk.Frame(parent)
+        barra.pack(fill="x", pady=(8, 0))
+        ttk.Button(barra, text="Actualizar historial", command=self._cargar_historial).pack(side="left", padx=4)
+        ttk.Button(barra, text="Ver detalle de sesión seleccionada", command=self._ver_detalle_sesion).pack(side="left", padx=4)
 
-    # -------------------- Datos UI --------------------
+    # -------------------- Datos / Helpers --------------------
     def _cargar_carreras(self):
-        """Carga carreras al combobox (solo UI — sin lógica aún)."""
+        """Carga carreras al combobox."""
         try:
             carreras = listar_carreras()
             values = [f"{c.codigo} - {c.nombre}" for c in carreras]
@@ -196,11 +208,10 @@ class VentanaDocente(tb.Toplevel):
             if values:
                 self.combo_carrera.current(0)
         except Exception:
-            # Si no cargan, dejamos el combobox vacío
             self.combo_carrera.configure(values=[])
 
     def _cargar_cursos(self):
-        """Carga cursos al combobox con formato 'ID - Nombre' (sin filtrar)."""
+        """Carga cursos al combobox con formato 'ID - Nombre'."""
         try:
             cursos = listar_cursos()
             values = [f"{c.id_curso} - {c.nombre}" for c in cursos]
@@ -210,9 +221,172 @@ class VentanaDocente(tb.Toplevel):
         except Exception:
             self.combo_curso.configure(values=[])
 
+    def _precargar_estudiantes(self):
+        """Llena la tabla con estudiantes de la carrera seleccionada."""
+        try:
+            sel_car = self.var_carrera.get().strip()
+            if not sel_car:
+                return
+            id_carrera = sel_car.split(" - ", 1)[0]
+            estudiantes = listar_estudiantes_por_carrera(id_carrera)
+
+            # limpiar tabla
+            for iid in self.tabla_prev.get_children():
+                self.tabla_prev.delete(iid)
+
+            carrera_txt = self.var_carrera.get().strip()
+            for e in estudiantes:
+                self.tabla_prev.insert(
+                    "", "end", iid=e.codigo,
+                    values=(e.codigo, e.nombre, carrera_txt)
+                )
+        except Exception:
+            pass
+
     def _tick_reloj(self):
         """Actualiza Fecha y Hora cada segundo (desde el sistema)."""
         ahora = datetime.now()
         self.var_fecha.set(ahora.strftime("%Y-%m-%d"))
         self.var_hora.set(ahora.strftime("%H:%M:%S"))
         self.after(1000, self._tick_reloj)
+
+    # -------------------- Asistencia (sesión) --------------------
+    def iniciar_asistencia(self):
+        if self._escuchando:
+            return
+
+        jornada = self.var_jornada.get().strip()
+        fecha = self.var_fecha.get().strip()
+        hora = datetime.now().strftime("%H:%M:%S")
+
+        sel_car = self.var_carrera.get().strip()
+        sel_cur = self.var_curso.get().strip()
+        if not sel_car or not sel_cur:
+            messagebox.showwarning("Asistencia", "Selecciona Carrera y Curso.")
+            return
+
+        id_carrera = sel_car.split(" - ", 1)[0]
+        id_curso = sel_cur.split(" - ", 1)[0]
+        usuario_docente = self.usuario_docente or (self.docente.usuario if self.docente else "")
+
+        try:
+            self.sesion_id = crear_sesion_asistencia(fecha, hora, jornada, usuario_docente, id_carrera, id_curso)
+        except Exception as e:
+            messagebox.showerror("Asistencia", f"No se pudo crear la sesión: {e}")
+            return
+
+        # Bloquear combos mientras esté activa la sesión
+        self.combo_jornada.configure(state="disabled")
+        self.combo_carrera.configure(state="disabled")
+        self.combo_curso.configure(state="disabled")
+
+        self.presentes = set()
+        self._escuchando = True
+        messagebox.showinfo("Asistencia", "Sesión iniciada. Pida a los estudiantes pasar su huella.")
+        self._loop_verificacion()
+
+    def terminar_asistencia(self):
+        if not self._escuchando:
+            messagebox.showinfo("Asistencia", "No hay sesión en curso.")
+            return
+
+        self._escuchando = False
+        if self._loop_id:
+            try:
+                self.after_cancel(self._loop_id)
+            except Exception:
+                pass
+            self._loop_id = None
+
+        try:
+            hora_fin = datetime.now().strftime("%H:%M:%S")
+            if self.sesion_id:
+                cerrar_sesion_asistencia(self.sesion_id, hora_fin)
+        except Exception as e:
+            messagebox.showerror("Asistencia", f"No se pudo cerrar la sesión: {e}")
+
+        # Desbloquear combos
+        self.combo_jornada.configure(state="readonly")
+        self.combo_carrera.configure(state="readonly")
+        self.combo_curso.configure(state="readonly")
+
+        messagebox.showinfo("Asistencia", "Sesión terminada y guardada.")
+        self.sesion_id = None
+
+        # refrescar historial
+        self._cargar_historial()
+
+    def _loop_verificacion(self):
+        """Llama a verificar_huella() periódicamente mientras la sesión está activa."""
+        if not self._escuchando:
+            return
+
+        try:
+            found, match_id = verificar_huella()
+            if found and match_id is not None:
+                est = obtener_estudiante_por_huella(int(match_id))
+                if est is not None:
+                    if est.codigo in self.presentes:
+                        messagebox.showinfo(
+                            "Asistencia",
+                            f"El estudiante {est.nombre} ({est.codigo}) ya fue registrado en esta sesión."
+                        )
+                    else:
+                        self.presentes.add(est.codigo)
+                        if self.sesion_id:
+                            registrar_evento_asistencia(
+                                self.sesion_id,
+                                est.codigo,
+                                int(match_id),
+                                datetime.now().strftime("%H:%M:%S")
+                            )
+                        messagebox.showinfo(
+                            "Asistencia",
+                            f"Asistencia registrada: {est.nombre} ({est.codigo})"
+                        )
+                else:
+                    messagebox.showwarning(
+                        "Asistencia",
+                        f"Huella detectada (ID {match_id}) no asignada a ningún estudiante."
+                    )
+        except Exception:
+            # evitar spam de errores si no hay huella/puerto ocupado
+            pass
+
+        # Repetir ~cada segundo
+        self._loop_id = self.after(1000, self._loop_verificacion)
+
+    # -------------------- Historial --------------------
+    def _cargar_historial(self):
+        for iid in self.tabla_hist.get_children():
+            self.tabla_hist.delete(iid)
+        try:
+            for (sid, fecha, hi, hf, jornada, docente_usuario, id_carrera, id_curso) in listar_sesiones():
+                presentes = len(listar_eventos_por_sesion(sid))
+                self.tabla_hist.insert(
+                    "", "end", iid=f"s{sid}",
+                    values=(fecha, hi, jornada, id_carrera, id_curso, presentes, "-")
+                )
+        except Exception as e:
+            messagebox.showerror("Historial", f"Error al cargar: {e}")
+
+    def _ver_detalle_sesion(self):
+        sel = self.tabla_hist.selection()
+        if not sel:
+            messagebox.showinfo("Historial", "Selecciona una sesión.")
+            return
+        sid = int(sel[0][1:])  # quita prefijo 's'
+        eventos = listar_eventos_por_sesion(sid)
+        if not eventos:
+            messagebox.showinfo("Detalle", "Sin eventos en esta sesión.")
+            return
+
+        top = tk.Toplevel(self)
+        top.title(f"Detalle sesión {sid}")
+        top.geometry("540x420")
+        txt = tk.Text(top, wrap="none")
+        txt.pack(fill="both", expand=True)
+        txt.insert("end", "Código Estudiante\tID Huella\tHora\n")
+        txt.insert("end", "-" * 56 + "\n")
+        for cod, idh, hora in eventos:
+            txt.insert("end", f"{cod}\t{idh}\t{hora}\n")

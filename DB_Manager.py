@@ -55,6 +55,32 @@ def init_db() -> None:
             ON DELETE RESTRICT
     );
     """)
+    # --- Sesiones de asistencia (cabecera) ---
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS sesiones_asistencia (
+        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        fecha            TEXT NOT NULL,              -- YYYY-MM-DD
+        hora_inicio      TEXT NOT NULL,              -- HH:MM:SS
+        hora_fin         TEXT,                       -- HH:MM:SS (al cerrar)
+        jornada          TEXT NOT NULL,              -- Matutina / Vespertina / FDS
+        docente_usuario  TEXT NOT NULL,              -- usuario del docente (o código si prefieres)
+        id_carrera       TEXT NOT NULL,              -- código carrera (p.ej. C20251)
+        id_curso         TEXT NOT NULL               -- id_curso (p.ej. SIS101)
+    );
+    """)
+
+    # --- Eventos (cada verificación exitosa, 1 por estudiante por sesión) ---
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS asistencias_eventos (
+        id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+        sesion_id          INTEGER NOT NULL,
+        codigo_estudiante  TEXT NOT NULL,
+        id_huella          INTEGER NOT NULL,
+        hora_evento        TEXT NOT NULL,            -- HH:MM:SS
+        UNIQUE(sesion_id, codigo_estudiante),
+        FOREIGN KEY(sesion_id) REFERENCES sesiones_asistencia(id) ON DELETE CASCADE
+    );
+    """)
 
     con.commit()
     con.close()
@@ -264,6 +290,31 @@ def buscar_carreras(term: str) -> List[Carrera]:
     return data
 
 # ESTUDIANTES
+def listar_estudiantes_por_carrera(id_carrera: str) -> List[Estudiante]:
+    init_db()
+    con = _conn(); cur = con.cursor()
+    cur.execute("""
+        SELECT codigo, nombre, id_huella, id_carrera
+        FROM estudiantes
+        WHERE id_carrera = ?
+        ORDER BY codigo;
+    """, (id_carrera,))
+    data = [Estudiante(c, n, int(h), ic) for c, n, h, ic in cur.fetchall()]
+    con.close()
+    return data
+
+def obtener_estudiante_por_huella(id_huella: int) -> Optional[Estudiante]:
+    init_db()
+    con = _conn(); cur = con.cursor()
+    cur.execute("""
+        SELECT codigo, nombre, id_huella, id_carrera
+        FROM estudiantes
+        WHERE id_huella = ?;
+    """, (int(id_huella),))
+    row = cur.fetchone()
+    con.close()
+    return Estudiante(*row) if row else None
+
 def listar_estudiantes() -> List[Estudiante]:
     init_db()
     con = _conn(); cur = con.cursor()
@@ -365,3 +416,61 @@ def sugerir_id_huella_libre(min_id: int = 1, max_id: int = 127):
         if i not in usados:
             return i
     return None
+def crear_sesion_asistencia(fecha: str, hora_inicio: str, jornada: str,
+                            docente_usuario: str, id_carrera: str, id_curso: str) -> int:
+    init_db()
+    con = _conn(); cur = con.cursor()
+    cur.execute("""
+        INSERT INTO sesiones_asistencia(fecha, hora_inicio, jornada, docente_usuario, id_carrera, id_curso)
+        VALUES(?,?,?,?,?,?);
+    """, (fecha, hora_inicio, jornada, docente_usuario, id_carrera, id_curso))
+    sesion_id = cur.lastrowid
+    con.commit(); con.close()
+    return sesion_id
+
+def cerrar_sesion_asistencia(sesion_id: int, hora_fin: str) -> None:
+    init_db()
+    con = _conn(); cur = con.cursor()
+    cur.execute("""
+        UPDATE sesiones_asistencia
+        SET hora_fin = ?
+        WHERE id = ?;
+    """, (hora_fin, int(sesion_id)))
+    con.commit(); con.close()
+
+def registrar_evento_asistencia(sesion_id: int, codigo_estudiante: str, id_huella: int, hora_evento: str) -> None:
+    init_db()
+    con = _conn(); cur = con.cursor()
+    try:
+        cur.execute("""
+            INSERT OR IGNORE INTO asistencias_eventos(sesion_id, codigo_estudiante, id_huella, hora_evento)
+            VALUES(?,?,?,?);
+        """, (int(sesion_id), codigo_estudiante, int(id_huella), hora_evento))
+        con.commit()
+    finally:
+        con.close()
+
+def listar_sesiones() -> list[tuple]:
+    init_db()
+    con = _conn(); cur = con.cursor()
+    cur.execute("""
+        SELECT id, fecha, hora_inicio, hora_fin, jornada, docente_usuario, id_carrera, id_curso
+        FROM sesiones_asistencia
+        ORDER BY id DESC;
+    """)
+    rows = cur.fetchall()
+    con.close()
+    return rows
+
+def listar_eventos_por_sesion(sesion_id: int) -> list[tuple]:
+    init_db()
+    con = _conn(); cur = con.cursor()
+    cur.execute("""
+        SELECT codigo_estudiante, id_huella, hora_evento
+        FROM asistencias_eventos
+        WHERE sesion_id = ?
+        ORDER BY hora_evento ASC;
+    """, (int(sesion_id),))
+    rows = cur.fetchall()
+    con.close()
+    return rows

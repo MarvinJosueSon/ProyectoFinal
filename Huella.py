@@ -228,3 +228,33 @@ def borrar_todas_huellas(timeout_total: int = 25) -> bool:
     finally:
         if ser and ser.is_open:
             ser.close()
+def verificar_huella(timeout_total: int = 14):
+    """
+    Envía VERIFICAR y espera:
+      - PYTHON_RESPUESTA:VERIFICADO_ID=<n>  -> (True, n)
+      - PYTHON_RESPUESTA:SIN_COINCIDENCIA  -> (False, None)
+    """
+    if serial is None:
+        raise RuntimeError("pyserial no está instalado. Ejecuta: pip install pyserial")
+
+    ser = None
+    try:
+        ser = _abrir_serial()
+        ser.write(b"VERIFICAR\n")
+        t0 = time.time()
+        while time.time() - t0 < timeout_total:
+            linea = ser.readline().decode("utf-8", errors="ignore").strip()
+            if not linea:
+                continue
+            if linea.startswith("PYTHON_RESPUESTA:VERIFICADO_ID="):
+                try:
+                    n = int(linea.split("=", 1)[1])
+                    return True, n
+                except Exception:
+                    return False, None
+            if "PYTHON_RESPUESTA:SIN_COINCIDENCIA" in linea:
+                return False, None
+        return False, None
+    finally:
+        if ser and ser.is_open:
+            ser.close()
