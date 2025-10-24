@@ -487,3 +487,34 @@ def eliminar_sesion(sesion_id: int) -> None:
     con = _conn(); cur = con.cursor()
     cur.execute("DELETE FROM sesiones_asistencia WHERE id = ?;", (int(sesion_id),))
     con.commit(); con.close()
+def listar_sesiones_por_docente(docente_usuario: str) -> list[tuple]:
+    """
+    Devuelve sesiones SOLO del docente indicado e incluye
+    los NOMBRES de carrera y curso mediante JOIN.
+    Columnas:
+      id, fecha, hora_inicio, hora_fin, jornada, docente_usuario,
+      id_carrera, carrera_nombre, id_curso, curso_nombre
+    """
+    init_db()
+    con = _conn(); cur = con.cursor()
+    cur.execute("""
+        SELECT
+            s.id,
+            s.fecha,
+            s.hora_inicio,
+            s.hora_fin,
+            s.jornada,
+            s.docente_usuario,
+            s.id_carrera,
+            COALESCE(c.nombre, s.id_carrera) AS carrera_nombre,
+            s.id_curso,
+            COALESCE(cu.nombre, s.id_curso) AS curso_nombre
+        FROM sesiones_asistencia s
+        LEFT JOIN carreras c ON c.codigo   = s.id_carrera
+        LEFT JOIN cursos   cu ON cu.id_curso = s.id_curso
+        WHERE s.docente_usuario = ?
+        ORDER BY s.id DESC;
+    """, (docente_usuario,))
+    rows = cur.fetchall()
+    con.close()
+    return rows

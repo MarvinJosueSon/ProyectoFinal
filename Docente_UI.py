@@ -9,7 +9,7 @@ from DB_Manager import (
     obtener_docente_por_usuario, listar_carreras, listar_cursos,
     listar_estudiantes_por_carrera, obtener_estudiante_por_huella,
     crear_sesion_asistencia, cerrar_sesion_asistencia, registrar_evento_asistencia,
-    listar_sesiones, listar_eventos_por_sesion,eliminar_sesion
+    listar_sesiones, listar_eventos_por_sesion,eliminar_sesion, listar_sesiones_por_docente
 )
 from Huella import verificar_huella
 
@@ -361,14 +361,21 @@ class VentanaDocente(tb.Toplevel):
 
     # -------------------- Historial --------------------
     def _cargar_historial(self):
+        # usuario del docente logueado
+        usuario_doc = self.usuario_docente or (self.docente.usuario if self.docente else "")
+
+        # limpiar tabla
         for iid in self.tabla_hist.get_children():
             self.tabla_hist.delete(iid)
+
         try:
-            for (sid, fecha, hi, hf, jornada, docente_usuario, id_carrera, id_curso) in listar_sesiones():
+            filas = listar_sesiones_por_docente(usuario_doc)
+            # filas: (sid, fecha, hi, hf, jornada, usuario, id_carrera, carrera_nom, id_curso, curso_nom)
+            for (sid, fecha, hi, hf, jornada, _u, _idcar, carrera_nom, _idcur, curso_nom) in filas:
                 presentes = len(listar_eventos_por_sesion(sid))
                 self.tabla_hist.insert(
                     "", "end", iid=f"s{sid}",
-                    values=(fecha, hi, jornada, id_carrera, id_curso, presentes, "-")
+                    values=(fecha, hi, jornada, carrera_nom, curso_nom, presentes, "-")
                 )
         except Exception as e:
             messagebox.showerror("Historial", f"Error al cargar: {e}")
@@ -420,3 +427,21 @@ class VentanaDocente(tb.Toplevel):
             messagebox.showinfo("Historial", f"Sesión #{sid} eliminada.")
         except Exception as e:
             messagebox.showerror("Historial", f"No se pudo eliminar la sesión: {e}")
+
+        def _cargar_historial(self):
+            # Determinar el usuario del docente logueado
+            usuario_docente = self.usuario_docente or (self.docente.usuario if self.docente else "")
+            for iid in self.tabla_hist.get_children():
+                self.tabla_hist.delete(iid)
+            try:
+                # Trae SOLO sesiones de este docente + nombres de carrera/curso
+                filas = listar_sesiones_por_docente(usuario_docente)
+                for (sid, fecha, hi, hf, jornada, _usuario, id_carrera, carrera_nom, id_curso, curso_nom) in filas:
+                    presentes = len(listar_eventos_por_sesion(sid))
+                    # Muestra NOMBRES en las columnas "Carrera" y "Curso"
+                    self.tabla_hist.insert(
+                        "", "end", iid=f"s{sid}",
+                        values=(fecha, hi, jornada, carrera_nom, curso_nom, presentes, "-")
+                    )
+            except Exception as e:
+                messagebox.showerror("Historial", f"Error al cargar: {e}")
