@@ -474,3 +474,16 @@ def listar_eventos_por_sesion(sesion_id: int) -> list[tuple]:
     rows = cur.fetchall()
     con.close()
     return rows
+
+def eliminar_sesion(sesion_id: int) -> None:
+    """Elimina la sesión y, por FK ON DELETE CASCADE"""
+    init_db()
+    con = _conn(); cur = con.cursor()
+    cur.execute("DELETE FROM sesiones_asistencia WHERE id = ?;", (int(sesion_id),))
+    con.commit(); con.close()
+def eliminar_sesion(sesion_id: int) -> None:
+    """Elimina la sesión y, por FK ON DELETE CASCADE"""
+    init_db()
+    con = _conn(); cur = con.cursor()
+    cur.execute("DELETE FROM sesiones_asistencia WHERE id = ?;", (int(sesion_id),))
+    con.commit(); con.close()

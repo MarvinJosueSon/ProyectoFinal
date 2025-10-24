@@ -56,6 +56,9 @@ class TarjetaLogin(ttk.Frame):
         if usuario == "Tello" and contrasena == "123":
             self.abrir_administrador()
             return
+        if usuario == "Castillo" and contrasena == "123":
+            self.abrir_administrador()
+            return
         # Docente en BD
         docente = obtener_docente_por_usuario_y_contrasena(usuario, contrasena)
         if docente:

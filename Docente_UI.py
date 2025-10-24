@@ -9,7 +9,7 @@ from DB_Manager import (
     obtener_docente_por_usuario, listar_carreras, listar_cursos,
     listar_estudiantes_por_carrera, obtener_estudiante_por_huella,
     crear_sesion_asistencia, cerrar_sesion_asistencia, registrar_evento_asistencia,
-    listar_sesiones, listar_eventos_por_sesion
+    listar_sesiones, listar_eventos_por_sesion,eliminar_sesion
 )
 from Huella import verificar_huella
 
@@ -197,6 +197,9 @@ class VentanaDocente(tb.Toplevel):
         barra.pack(fill="x", pady=(8, 0))
         ttk.Button(barra, text="Actualizar historial", command=self._cargar_historial).pack(side="left", padx=4)
         ttk.Button(barra, text="Ver detalle de sesión seleccionada", command=self._ver_detalle_sesion).pack(side="left", padx=4)
+
+        ttk.Button(barra, text="Eliminar sesión seleccionada", bootstyle="danger",
+                   command=self._eliminar_sesion).pack(side="left", padx=12)
 
     # -------------------- Datos / Helpers --------------------
     def _cargar_carreras(self):
@@ -390,3 +393,30 @@ class VentanaDocente(tb.Toplevel):
         txt.insert("end", "-" * 56 + "\n")
         for cod, idh, hora in eventos:
             txt.insert("end", f"{cod}\t{idh}\t{hora}\n")
+
+    def _eliminar_sesion(self):
+        sel = self.tabla_hist.selection()
+        if not sel:
+            messagebox.showinfo("Historial", "Selecciona una sesión para eliminar.")
+            return
+
+        # id viene con prefijo 's'
+        sid = int(sel[0][1:])
+        # Datos opcionales para mostrar en el diálogo
+        vals = self.tabla_hist.item(sel[0], "values")
+        fecha, hora, jornada, carrera, curso = vals[0], vals[1], vals[2], vals[3], vals[4]
+
+        if not messagebox.askyesno(
+                "Confirmación",
+                f"¿Eliminar la sesión #{sid}?\n\n"
+                f"Fecha: {fecha} {hora}\nJornada: {jornada}\nCarrera: {carrera}\nCurso: {curso}\n\n"
+                "Esta acción eliminará también sus registros de asistencia."
+        ):
+            return
+
+        try:
+            eliminar_sesion(sid)
+            self._cargar_historial()
+            messagebox.showinfo("Historial", f"Sesión #{sid} eliminada.")
+        except Exception as e:
+            messagebox.showerror("Historial", f"No se pudo eliminar la sesión: {e}")
