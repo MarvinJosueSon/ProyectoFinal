@@ -1,8 +1,4 @@
-# Huella.py (versión persistente sin auto-reset)
-# - Mantiene un solo puerto serie abierto (evita resets del Arduino por DTR/RTS)
-# - Desactiva DTR/RTS tras abrir el puerto
-# - Quita todos los cierres del puerto en cada operación
-# - Misma API pública que usas en tu proyecto
+# Huella.py
 
 import time
 
