@@ -1,6 +1,8 @@
-# Huella.py
-# Autodetección de puerto + protocolo GUARDAR/ENVIA_ID_GUARDAR/GUARDADO_EXITOSO
-# Ahora también: PING, CONTAR, LISTAR, EXISTE, BORRAR_ID, BORRAR_TODO
+# Huella.py (versión persistente sin auto-reset)
+# - Mantiene un solo puerto serie abierto (evita resets del Arduino por DTR/RTS)
+# - Desactiva DTR/RTS tras abrir el puerto
+# - Quita todos los cierres del puerto en cada operación
+# - Misma API pública que usas en tu proyecto
 
 import time
 
@@ -25,6 +27,10 @@ VID_PID_CONOCIDOS = {
     ("10C4", "EA60"),  # CP210x
 }
 
+# ---------------- Conexión persistente ----------------
+_SER = None  # instancia global persistente
+
+
 def _listar_puertos():
     if list_ports is None:
         return []
@@ -34,6 +40,7 @@ def _listar_puertos():
         pid = f"{p.pid:04X}" if p.pid is not None else ""
         puertos.append((p.device, p.description or "", vid, pid))
     return puertos
+
 
 def _detectar_puerto(preferido: str | None = None) -> str:
     if serial is None:
@@ -57,177 +64,182 @@ def _detectar_puerto(preferido: str | None = None) -> str:
 
     return disponibles[0][0]
 
-def _abrir_serial():
-    port = _detectar_puerto(PUERTO_SERIAL)
-    try:
-        ser = serial.Serial(port, BAUD_RATE, timeout=TIMEOUT_S)
-    except Exception as e:
-        disponibles = _listar_puertos()
-        det = "\n".join(f" - {d} ({desc}) VID:PID={vid}:{pid}" for d, desc, vid, pid in disponibles) or " (sin puertos)"
-        raise RuntimeError(f"No se pudo abrir {port}. Detalle: {e}\nPuertos disponibles:\n{det}")
-    time.sleep(TIEMPO_ESPERA_INICIAL)
-    ser.reset_input_buffer()
-    ser.reset_output_buffer()
-    return ser
 
-# ---------------- ENROLAR (ya existente) ----------------
+def _get_serial():
+    """Abre (si hace falta) y devuelve la conexión persistente sin DTR/RTS."""
+    global _SER
+    if _SER and _SER.is_open:
+        return _SER
+
+    port = _detectar_puerto(PUERTO_SERIAL)
+    s = serial.Serial(
+        port,
+        BAUD_RATE,
+        timeout=TIMEOUT_S,
+        write_timeout=TIMEOUT_S,
+        rtscts=False,
+        dsrdtr=False,
+    )
+    # Evitar auto-reset por líneas de control
+    try:
+        s.setDTR(False)
+        s.setRTS(False)
+    except Exception:
+        pass
+
+    time.sleep(TIEMPO_ESPERA_INICIAL)
+    try:
+        s.reset_input_buffer()
+        s.reset_output_buffer()
+    except Exception:
+        pass
+
+    _SER = s
+    return _SER
+
+
+def _reconectar():
+    """Cierra (si está) y reabre el puerto de forma segura."""
+    global _SER
+    try:
+        if _SER and _SER.is_open:
+            _SER.close()
+    except Exception:
+        pass
+    _SER = None
+    return _get_serial()
+
+
+# ---------------- Protocolo de alto nivel ----------------
 def enrolar_huella_con_id(id_huella: int, timeout_total: int = 35) -> bool:
     """GUARDAR -> ENVIA_ID_GUARDAR -> <id> -> GUARDADO_EXITOSO"""
     if serial is None:
         raise RuntimeError("pyserial no está instalado. Ejecuta: pip install pyserial")
 
-    ser = None
-    try:
-        ser = _abrir_serial()
-        ser.write(b"GUARDAR\n")
-        t0 = time.time()
-        pid_enviado = False
+    ser = _get_serial()
+    ser.write(b"GUARDAR\n")
+    t0 = time.time()
+    pid_enviado = False
 
-        while time.time() - t0 < timeout_total:
-            linea = ser.readline().decode("utf-8", errors="ignore").strip()
-            if not linea:
-                continue
-            if "PYTHON_INSTRUCCION" in linea and "ENVIA_ID_GUARDAR" in linea and not pid_enviado:
-                ser.write(f"{id_huella}\n".encode("utf-8"))
-                pid_enviado = True
-            if linea.startswith("PYTHON_RESPUESTA:"):
-                if "GUARDADO_EXITOSO" in linea:
-                    return True
-                if "GUARDADO_FALLIDO" in linea or "ID_INVALIDO" in linea:
-                    return False
-        return False
-    finally:
-        if ser and ser.is_open:
-            ser.close()
+    while time.time() - t0 < timeout_total:
+        linea = ser.readline().decode("utf-8", errors="ignore").strip()
+        if not linea:
+            continue
+        if "PYTHON_INSTRUCCION" in linea and "ENVIA_ID_GUARDAR" in linea and not pid_enviado:
+            ser.write(f"{id_huella}\n".encode("utf-8"))
+            pid_enviado = True
+        if linea.startswith("PYTHON_RESPUESTA:"):
+            if "GUARDADO_EXITOSO" in linea:
+                return True
+            if "GUARDADO_FALLIDO" in linea or "ID_INVALIDO" in linea:
+                return False
+    return False
 
-# ---------------- NUEVAS UTILIDADES ----------------
+
 def ping(timeout_total: int = 5) -> bool:
     """PING -> PONG"""
-    ser = None
-    try:
-        ser = _abrir_serial()
-        ser.write(b"PING\n")
-        t0 = time.time()
-        while time.time() - t0 < timeout_total:
-            linea = ser.readline().decode("utf-8", errors="ignore").strip()
-            if linea == "PONG":
-                return True
-        return False
-    finally:
-        if ser and ser.is_open:
-            ser.close()
+    ser = _get_serial()
+    ser.write(b"PING\n")
+    t0 = time.time()
+    while time.time() - t0 < timeout_total:
+        linea = ser.readline().decode("utf-8", errors="ignore").strip()
+        if linea == "PONG":
+            return True
+    return False
+
 
 def contar_huellas(timeout_total: int = 8) -> int:
     """CONTAR -> PYTHON_RESPUESTA:TOTAL=<n>  | -1 si no responde"""
-    ser = None
-    try:
-        ser = _abrir_serial()
-        ser.write(b"CONTAR\n")
-        t0 = time.time()
-        while time.time() - t0 < timeout_total:
-            linea = ser.readline().decode("utf-8", errors="ignore").strip()
-            if linea.startswith("PYTHON_RESPUESTA:TOTAL="):
-                try:
-                    return int(linea.split("=", 1)[1])
-                except Exception:
-                    return -1
-        return -1
-    finally:
-        if ser and ser.is_open:
-            ser.close()
+    ser = _get_serial()
+    ser.write(b"CONTAR\n")
+    t0 = time.time()
+    while time.time() - t0 < timeout_total:
+        linea = ser.readline().decode("utf-8", errors="ignore").strip()
+        if linea.startswith("PYTHON_RESPUESTA:TOTAL="):
+            try:
+                return int(linea.split("=", 1)[1])
+            except Exception:
+                return -1
+    return -1
+
 
 def listar_huellas_ids(timeout_total: int = 20) -> list[int]:
     """LISTAR -> ID:<n> ... FIN_LISTA"""
-    ser = None
+    ser = _get_serial()
     ids = []
-    try:
-        ser = _abrir_serial()
-        ser.write(b"LISTAR\n")
-        t0 = time.time()
-        while time.time() - t0 < timeout_total:
-            linea = ser.readline().decode("utf-8", errors="ignore").strip()
-            if not linea:
-                continue
-            if linea == "FIN_LISTA":
-                break
-            if linea.startswith("ID:"):
-                try:
-                    ids.append(int(linea.split(":", 1)[1]))
-                except Exception:
-                    pass
-        return ids
-    finally:
-        if ser and ser.is_open:
-            ser.close()
+    ser.write(b"LISTAR\n")
+    t0 = time.time()
+    while time.time() - t0 < timeout_total:
+        linea = ser.readline().decode("utf-8", errors="ignore").strip()
+        if not linea:
+            continue
+        if linea == "FIN_LISTA":
+            break
+        if linea.startswith("ID:"):
+            try:
+                ids.append(int(linea.split(":", 1)[1]))
+            except Exception:
+                pass
+    return ids
+
 
 def existe_huella(id_huella: int, timeout_total: int = 8) -> bool:
     """EXISTE -> ENVIA_ID_EXISTE -> <id> -> PYTHON_RESPUESTA:EXISTE/NO_EXISTE"""
-    ser = None
-    try:
-        ser = _abrir_serial()
-        ser.write(b"EXISTE\n")
-        t0 = time.time()
-        pid_enviado = False
-        while time.time() - t0 < timeout_total:
-            linea = ser.readline().decode("utf-8", errors="ignore").strip()
-            if not linea:
-                continue
-            if "PYTHON_INSTRUCCION" in linea and "ENVIA_ID_EXISTE" in linea and not pid_enviado:
-                ser.write(f"{int(id_huella)}\n".encode("utf-8"))
-                pid_enviado = True
-            if linea.startswith("PYTHON_RESPUESTA:"):
-                if "EXISTE" in linea:
-                    return True
-                if "NO_EXISTE" in linea:
-                    return False
-        return False
-    finally:
-        if ser and ser.is_open:
-            ser.close()
+    ser = _get_serial()
+    ser.write(b"EXISTE\n")
+    t0 = time.time()
+    pid_enviado = False
+    while time.time() - t0 < timeout_total:
+        linea = ser.readline().decode("utf-8", errors="ignore").strip()
+        if not linea:
+            continue
+        if "PYTHON_INSTRUCCION" in linea and "ENVIA_ID_EXISTE" in linea and not pid_enviado:
+            ser.write(f"{int(id_huella)}\n".encode("utf-8"))
+            pid_enviado = True
+        if linea.startswith("PYTHON_RESPUESTA:"):
+            if "EXISTE" in linea:
+                return True
+            if "NO_EXISTE" in linea:
+                return False
+    return False
+
 
 def borrar_huella_id(id_huella: int, timeout_total: int = 12) -> bool:
     """BORRAR_ID -> ENVIA_ID_BORRAR -> <id> -> PYTHON_RESPUESTA:BORRADO_OK/BORRADO_ERROR"""
-    ser = None
-    try:
-        ser = _abrir_serial()
-        ser.write(b"BORRAR_ID\n")
-        t0 = time.time()
-        pid_enviado = False
-        while time.time() - t0 < timeout_total:
-            linea = ser.readline().decode("utf-8", errors="ignore").strip()
-            if not linea:
-                continue
-            if "PYTHON_INSTRUCCION" in linea and "ENVIA_ID_BORRAR" in linea and not pid_enviado:
-                ser.write(f"{int(id_huella)}\n".encode("utf-8"))
-                pid_enviado = True
-            if linea.startswith("PYTHON_RESPUESTA:"):
-                if "BORRADO_OK" in linea:
-                    return True
-                if "BORRADO_ERROR" in linea or "NO_EXISTE" in linea:
-                    return False
-        return False
-    finally:
-        if ser and ser.is_open:
-            ser.close()
+    ser = _get_serial()
+    ser.write(b"BORRAR_ID\n")
+    t0 = time.time()
+    pid_enviado = False
+    while time.time() - t0 < timeout_total:
+        linea = ser.readline().decode("utf-8", errors="ignore").strip()
+        if not linea:
+            continue
+        if "PYTHON_INSTRUCCION" in linea and "ENVIA_ID_BORRAR" in linea and not pid_enviado:
+            ser.write(f"{int(id_huella)}\n".encode("utf-8"))
+            pid_enviado = True
+        if linea.startswith("PYTHON_RESPUESTA:"):
+            if "BORRADO_OK" in linea:
+                return True
+            if "BORRADO_ERROR" in linea or "NO_EXISTE" in linea:
+                return False
+    return False
+
 
 def borrar_todas_huellas(timeout_total: int = 25) -> bool:
     """BORRAR_TODO -> PYTHON_RESPUESTA:BORRADO_TODO_OK/BORRADO_TODO_ERROR"""
-    ser = None
-    try:
-        ser = _abrir_serial()
-        ser.write(b"BORRAR_TODO\n")
-        t0 = time.time()
-        while time.time() - t0 < timeout_total:
-            linea = ser.readline().decode("utf-8", errors="ignore").strip()
-            if linea.startswith("PYTHON_RESPUESTA:"):
-                if "BORRADO_TODO_OK" in linea:
-                    return True
-                if "BORRADO_TODO_ERROR" in linea:
-                    return False
-        return False
-    finally:
-        if ser and ser.is_open:
-            ser.close()
+    ser = _get_serial()
+    ser.write(b"BORRAR_TODO\n")
+    t0 = time.time()
+    while time.time() - t0 < timeout_total:
+        linea = ser.readline().decode("utf-8", errors="ignore").strip()
+        if linea.startswith("PYTHON_RESPUESTA:"):
+            if "BORRADO_TODO_OK" in linea:
+                return True
+            if "BORRADO_TODO_ERROR" in linea:
+                return False
+    return False
+
+
 def verificar_huella(timeout_total: int = 14):
     """
     Envía VERIFICAR y espera:
@@ -237,24 +249,31 @@ def verificar_huella(timeout_total: int = 14):
     if serial is None:
         raise RuntimeError("pyserial no está instalado. Ejecuta: pip install pyserial")
 
-    ser = None
-    try:
-        ser = _abrir_serial()
-        ser.write(b"VERIFICAR\n")
-        t0 = time.time()
-        while time.time() - t0 < timeout_total:
-            linea = ser.readline().decode("utf-8", errors="ignore").strip()
-            if not linea:
-                continue
-            if linea.startswith("PYTHON_RESPUESTA:VERIFICADO_ID="):
-                try:
-                    n = int(linea.split("=", 1)[1])
-                    return True, n
-                except Exception:
-                    return False, None
-            if "PYTHON_RESPUESTA:SIN_COINCIDENCIA" in linea:
+    ser = _get_serial()
+    ser.write(b"VERIFICAR\n")
+    t0 = time.time()
+    while time.time() - t0 < timeout_total:
+        linea = ser.readline().decode("utf-8", errors="ignore").strip()
+        if not linea:
+            continue
+        if linea.startswith("PYTHON_RESPUESTA:VERIFICADO_ID="):
+            try:
+                n = int(linea.split("=", 1)[1])
+                return True, n
+            except Exception:
                 return False, None
-        return False, None
-    finally:
-        if ser and ser.is_open:
-            ser.close()
+        if "PYTHON_RESPUESTA:SIN_COINCIDENCIA" in linea:
+            return False, None
+    return False, None
+
+
+# ---------------- Utilidades opcionales ----------------
+def cerrar_puerto():
+    """Si necesitas cerrar el puerto manualmente (rara vez)."""
+    global _SER
+    try:
+        if _SER and _SER.is_open:
+            _SER.close()
+    except Exception:
+        pass
+    _SER = None
