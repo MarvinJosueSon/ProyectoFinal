@@ -9,7 +9,7 @@ from DB_Manager import (
     obtener_docente_por_usuario, listar_carreras, listar_cursos,
     listar_estudiantes_por_carrera, obtener_estudiante_por_huella,
     crear_sesion_asistencia, cerrar_sesion_asistencia, registrar_evento_asistencia,
-    listar_sesiones, listar_eventos_por_sesion,eliminar_sesion, listar_sesiones_por_docente
+    listar_sesiones, listar_eventos_por_sesion,eliminar_sesion, listar_sesiones_por_docente,listar_eventos_por_sesion_con_nombre
 )
 from Huella import verificar_huella
 
@@ -385,21 +385,39 @@ class VentanaDocente(tb.Toplevel):
         if not sel:
             messagebox.showinfo("Historial", "Selecciona una sesión.")
             return
+
         sid = int(sel[0][1:])  # quita prefijo 's'
-        eventos = listar_eventos_por_sesion(sid)
+
+        # Trae también el nombre del estudiante
+        eventos = listar_eventos_por_sesion_con_nombre(sid)
         if not eventos:
             messagebox.showinfo("Detalle", "Sin eventos en esta sesión.")
             return
 
         top = tk.Toplevel(self)
         top.title(f"Detalle sesión {sid}")
-        top.geometry("540x420")
-        txt = tk.Text(top, wrap="none")
-        txt.pack(fill="both", expand=True)
-        txt.insert("end", "Código Estudiante\tID Huella\tHora\n")
-        txt.insert("end", "-" * 56 + "\n")
-        for cod, idh, hora in eventos:
-            txt.insert("end", f"{cod}\t{idh}\t{hora}\n")
+        top.geometry("640x460")
+
+        # Tabla bonita en lugar de Text
+        cols = ("codigo", "nombre", "huella", "hora")
+        tv = ttk.Treeview(top, columns=cols, show="headings")
+        tv.heading("codigo", text="Código")
+        tv.heading("nombre", text="Nombre")
+        tv.heading("huella", text="ID Huella")
+        tv.heading("hora", text="Hora")
+
+        tv.column("codigo", width=120, anchor="center")
+        tv.column("nombre", width=300, anchor="w")
+        tv.column("huella", width=100, anchor="center")
+        tv.column("hora", width=100, anchor="center")
+
+        scroll = ttk.Scrollbar(top, orient="vertical", command=tv.yview)
+        tv.configure(yscrollcommand=scroll.set)
+        tv.pack(side="left", fill="both", expand=True)
+        scroll.pack(side="right", fill="y")
+
+        for cod, nom, idh, hora in eventos:
+            tv.insert("", "end", values=(cod, nom, idh, hora))
 
     def _eliminar_sesion(self):
         sel = self.tabla_hist.selection()

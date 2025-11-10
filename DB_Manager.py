@@ -518,3 +518,25 @@ def listar_sesiones_por_docente(docente_usuario: str) -> list[tuple]:
     rows = cur.fetchall()
     con.close()
     return rows
+def listar_eventos_por_sesion_con_nombre(sesion_id: int) -> list[tuple]:
+    """
+    Devuelve (codigo_estudiante, nombre_estudiante, id_huella, hora_evento)
+    usando JOIN con la tabla estudiantes.
+    """
+    init_db()
+    con = _conn(); cur = con.cursor()
+    cur.execute("""
+        SELECT 
+            ae.codigo_estudiante,
+            COALESCE(e.nombre, ae.codigo_estudiante) AS nombre_estudiante,
+            ae.id_huella,
+            ae.hora_evento
+        FROM asistencias_eventos ae
+        LEFT JOIN estudiantes e 
+               ON e.codigo = ae.codigo_estudiante
+        WHERE ae.sesion_id = ?
+        ORDER BY ae.hora_evento ASC;
+    """, (int(sesion_id),))
+    rows = cur.fetchall()
+    con.close()
+    return rows
