@@ -15,7 +15,7 @@ class SensorHuellasAD(ttk.Frame):
     - Contar huellas
     - Listar IDs en sensor
     - Cruce con BD (Docentes/Estudiantes)
-    - Borrar por ID / Borrar todo
+    - Borrar por ID / Borrar
     """
     def __init__(self, master):
         super().__init__(master, padding=12)
